@@ -1,0 +1,46 @@
+version: 3
+workdir: .
+allow:
+  depOnAnyVendor: false
+  deepScan: true
+
+exclude:
+  - "examples"
+  - "test"
+  - "vendor"
+  - ".tmp"
+
+excludeFiles:
+  - "^.*_test\\.go$"
+  - "^.*\/test\/.*$"
+
+# Third-party packages that components may use via 'canUse'.
+# Example for a real project:
+#
+# vendors:
+#   x-sync: { in: "golang.org/x/sync/**" }
+#   ergo:   { in: "ergo.services/ergo/**" }
+
+components:
+  cmd: { in: cmd }
+  # Example for a real project, one entry per domain package:
+  #
+  # orders:   { in: internal/orders }
+  # billing:  { in: internal/billing }
+  # platform: { in: internal/platform/** }
+
+deps:
+  # cmd is the composition root: it wires all components and vendors together.
+  cmd:
+    anyProjectDeps: true
+    anyVendorDeps: true
+  # Example for a real project, each component lists what it may import:
+  #
+  # orders:
+  #   mayDependOn: [platform]
+  #   canUse: [ergo]
+  # billing:
+  #   mayDependOn: [orders, platform]
+  #   canUse: [ergo, x-sync]
+  # platform:
+  #   canUse: [x-sync]
