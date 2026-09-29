@@ -15,6 +15,15 @@ The entry point is `cmd/workbench`. Start it with `task workbench` and open http
 | `-inspected-orders-per-tick` | Simulated orders placed per tick, 0 to 100. |
 | `-inspected-tick-interval` | Wall-clock time between simulation ticks, for example `1s`. |
 | `-inspected-request-timeout` | Max wait for the simulation per HTTP request, for example `2s`. |
+| `-inspector-source-timeout` | Max wait for one read of the inspected service by the inspector, for example `2s`. |
+
+The workbench also mounts the Inspector views of the simulation under `/inspector/`. They are built from the library packages `connectivity`, `representation` and the harness package `adapter`, and read the inspected service over HTTP through the workbench listener.
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| GET | `/inspector/` | Overview: observation time, entity kinds with counts |
+| GET | `/inspector/entities` | Entities, optional filter `kind` |
+| GET | `/inspector/entities/{kind}/{id}` | One entity with attributes and related entities |
 
 ## inspected
 
@@ -98,3 +107,25 @@ curl $B/health/ready                            # up
 ```
 
 Resume the clock with `curl -X PUT -d '{"running":true}' $B/sim/clock`.
+
+## adapter
+
+`adapter/` maps the inspected simulation into the Inspector observation model. It is the only package that knows both the inspected JSON contract and the library model; all simulated vocabulary Inspector shows is defined here. It reads the inspected service like an external client: GET requests to `/inspected/health/ready`, `/inspected/api/products` and `/inspected/api/orders` through `connectivity.HTTPReader`. It never reads `/inspected/sim` and does not import package `inspected`.
+
+Entities:
+
+| Source | Kind | ID | State | Attributes |
+| --- | --- | --- | --- | --- |
+| readiness | `service` | `inspected` | readiness `status` | none |
+| each check | `health_check` | `name` | `status` | `reason`, only when not empty |
+| each product | `product` | `sku` | empty | `name`, `price_cents`, `stock`, `capacity`, `reorder_point` |
+| each order | `order` | `id` | `status` | `quantity`, `total_cents`, `channel`, `placed_at_tick`, `updated_at_tick`, `failure_reason` only when not empty |
+
+Relations:
+
+| From | Kind | To |
+| --- | --- | --- |
+| `service/inspected` | `has_check` | `health_check/<name>`, one per check |
+| `order/<id>` | `for_product` | `product/<sku>`, one per order |
+
+The three reads are not atomic; they can come from different ticks.

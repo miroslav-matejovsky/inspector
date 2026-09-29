@@ -14,6 +14,14 @@
 // process and mounts its handler under inspected.PathPrefix + "/" on the same
 // HTTP server. There is no second entry point and no second port.
 //
+// # Inspector
+//
+// The workbench consumes the Inspector library against the inspected
+// simulation. InspectorHandler composes connectivity.HTTPReader, package
+// adapter and representation.NewHandler, and Handler mounts the result under
+// InspectorPathPrefix + "/". The inspector reads the inspected service over
+// HTTP through the listener of the workbench, as an external client would.
+//
 // # Configuration
 //
 // Config has no defaults. ParseConfig reads it from command-line flags and
@@ -24,6 +32,7 @@
 //	-inspected-orders-per-tick  simulated orders placed per tick, 0..100
 //	-inspected-tick-interval    wall-clock time between simulation ticks
 //	-inspected-request-timeout  max wait for the simulation per HTTP request
+//	-inspector-source-timeout   max wait for one read of the inspected service by the inspector
 //
 // # Supervision
 //

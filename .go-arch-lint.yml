@@ -23,9 +23,19 @@ excludeFiles:
 vendors:
   prometheus: { in: "github.com/prometheus/**" }
 
+# Inspector library components (observation, navigation, connectivity,
+# representation, and later explanation) list only other library components
+# in mayDependOn, never a harness component: the library knows no inspected
+# system. Every Go package must be mapped to a component; go-arch-lint fails
+# on files that are not attached to one. Vocabulary is checked by task boundary.
 components:
   cmd: { in: cmd/** }
+  observation: { in: observation }
+  navigation: { in: navigation }
+  connectivity: { in: connectivity }
+  representation: { in: representation }
   workbench: { in: harness/workbench }
+  adapter: { in: harness/adapter }
   fulfillment: { in: harness/inspected/fulfillment }
   simulation: { in: harness/inspected/simulation }
   metrics: { in: harness/inspected/metrics }
@@ -42,8 +52,14 @@ deps:
   cmd:
     anyProjectDeps: true
     anyVendorDeps: true
+  navigation:
+    mayDependOn: [observation]
+  representation:
+    mayDependOn: [observation, navigation]
   workbench:
-    mayDependOn: [inspected]
+    mayDependOn: [inspected, adapter, connectivity, representation]
+  adapter:
+    mayDependOn: [observation, connectivity]
   simulation:
     mayDependOn: [fulfillment]
   metrics:

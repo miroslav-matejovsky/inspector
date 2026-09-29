@@ -48,6 +48,12 @@ tasks:
       - go-arch-lint check
       - echo arch-lint done
 
+  boundary:
+    desc: Check that the Inspector library folders do not name the harness or its simulated domain
+    silent: true
+    cmds:
+      - pwsh -NoProfile -NonInteractive -File taskfile/boundary.ps1 observation explanation navigation representation connectivity
+
   lint:
     desc: Run golangci-lint
     silent: true
@@ -75,6 +81,7 @@ tasks:
       - task vet
       - task deadcode
       - task arch-lint
+      - task boundary
       - task lint
       - task test
       - echo all done
@@ -82,10 +89,10 @@ tasks:
 # ---- running stuff ----
 
   workbench:
-    desc: Run the development workbench with the inspected simulation on localhost:8080
+    desc: Run the development workbench with the inspected simulation and the inspector on localhost:8080
     silent: true
     cmds:
-      - go run ./cmd/workbench -addr localhost:8080 -inspected-seed 42 -inspected-orders-per-tick 1 -inspected-tick-interval 1s -inspected-request-timeout 2s
+      - go run ./cmd/workbench -addr localhost:8080 -inspected-seed 42 -inspected-orders-per-tick 1 -inspected-tick-interval 1s -inspected-request-timeout 2s -inspector-source-timeout 2s
 
 # ---- release ----
 

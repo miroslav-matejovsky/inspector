@@ -21,7 +21,8 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	fmt.Printf("workbench listening on http://%s (inspected at http://%s%s/)\n", cfg.Addr, cfg.Addr, inspected.PathPrefix)
+	fmt.Printf("workbench listening on http://%s (inspected at http://%s%s/, inspector at http://%s%s/)\n",
+		cfg.Addr, cfg.Addr, inspected.PathPrefix, cfg.Addr, workbench.InspectorPathPrefix)
 	if err := workbench.Run(ctx, cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
