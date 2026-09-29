@@ -49,4 +49,3 @@ A plan is complete only when all implementation tasks are finished, all tests pa
 
 | Name | Description |
 |------|-------------|
-| [init](init/README.md) | Start the Inspector library: observation model, navigation links, read-only connectivity, JSON views, consumed by the workbench against the inspected simulation. |
