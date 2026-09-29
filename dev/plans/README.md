@@ -50,3 +50,4 @@ A plan is complete only when all implementation tasks are finished, all tests pa
 | Name | Description |
 |------|-------------|
 | Example Plan | Demonstrates the structure and content of a typical implementation plan |
+| [Inspected simulation](inspected-simulation/README.md) | Simulated order fulfillment service in `harness/inspected` with JSON API, health checks and Prometheus metrics, mounted in the workbench under `/inspected` |
