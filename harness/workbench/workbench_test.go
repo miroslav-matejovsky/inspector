@@ -2,7 +2,7 @@ package workbench_test
 
 import (
 	"context"
-	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,46 +10,99 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/miroslav-matejovsky/inspector/harness/inspected"
 	"github.com/miroslav-matejovsky/inspector/harness/workbench"
 )
 
+// stubHandler records the paths it is asked to serve.
+type stubHandler struct{ paths []string }
+
+func (s *stubHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	s.paths = append(s.paths, r.URL.Path)
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func get(h http.Handler, path string) *httptest.ResponseRecorder {
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
+	return rec
+}
+
+func validConfig() workbench.Config {
+	return workbench.Config{
+		Addr: "127.0.0.1:0",
+		Inspected: inspected.Config{
+			Seed: 1, OrdersPerTick: 1, TickInterval: time.Hour, RequestTimeout: time.Second,
+		},
+	}
+}
+
 func TestHandlerServesTwoPanels(t *testing.T) {
-	srv := httptest.NewServer(workbench.Handler())
-	defer srv.Close()
+	rec := get(workbench.Handler(&stubHandler{}), "/")
 
-	resp, err := http.Get(srv.URL + "/")
-	require.NoError(t, err)
-	defer func() { require.NoError(t, resp.Body.Close()) }()
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Contains(t, rec.Header().Get("Content-Type"), "text/html")
+	require.Contains(t, rec.Body.String(), `id="inspected"`)
+	require.Contains(t, rec.Body.String(), `id="inspector"`)
+}
 
-	require.Equal(t, http.StatusOK, resp.StatusCode)
-	require.Contains(t, resp.Header.Get("Content-Type"), "text/html")
+func TestHandlerMountsInspected(t *testing.T) {
+	stub := &stubHandler{}
 
-	body, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-	require.Contains(t, string(body), `id="inspected"`)
-	require.Contains(t, string(body), `id="inspector"`)
+	rec := get(workbench.Handler(stub), inspected.PathPrefix+"/api/products")
+
+	require.Equal(t, http.StatusNoContent, rec.Code)
+	require.Equal(t, []string{inspected.PathPrefix + "/api/products"}, stub.paths)
 }
 
 func TestHandlerUnknownPathIsNotFound(t *testing.T) {
-	srv := httptest.NewServer(workbench.Handler())
-	defer srv.Close()
+	stub := &stubHandler{}
 
-	resp, err := http.Get(srv.URL + "/missing")
-	require.NoError(t, err)
-	defer func() { require.NoError(t, resp.Body.Close()) }()
+	rec := get(workbench.Handler(stub), "/missing")
 
-	require.Equal(t, http.StatusNotFound, resp.StatusCode)
+	require.Equal(t, http.StatusNotFound, rec.Code)
+	require.Empty(t, stub.paths)
 }
 
-func TestRunRejectsEmptyAddr(t *testing.T) {
-	err := workbench.Run(context.Background(), "")
+func TestWorkbenchServesInspected(t *testing.T) {
+	app, err := inspected.New(validConfig().Inspected)
+	require.NoError(t, err)
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- app.Run(ctx) }()
+	t.Cleanup(func() {
+		cancel()
+		require.NoError(t, <-done)
+	})
+
+	rec := get(workbench.Handler(app.Handler()), inspected.PathPrefix+"/health/live")
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.JSONEq(t, `{"status":"up"}`, rec.Body.String())
+}
+
+func TestRunRejectsInvalidConfig(t *testing.T) {
+	err := workbench.Run(context.Background(), workbench.Config{})
+
 	require.Error(t, err)
+}
+
+func TestRunFailsWhenAddressIsTaken(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, ln.Close()) })
+	cfg := validConfig()
+	cfg.Addr = ln.Addr().String()
+
+	err = workbench.Run(context.Background(), cfg)
+
+	require.ErrorContains(t, err, "listen")
 }
 
 func TestRunStopsOnContextCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
-	go func() { done <- workbench.Run(ctx, "127.0.0.1:0") }()
+	go func() { done <- workbench.Run(ctx, validConfig()) }()
 
 	cancel()
 

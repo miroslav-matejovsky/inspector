@@ -269,7 +269,7 @@ task all
 ## Acceptance Criteria
 
 - `go test ./harness/inspected/...` exits 0 and runs every test listed above.
-- `git grep -n -e "\"/inspected" -- harness/inspected ":(exclude)*_test.go"` prints exactly one match: the `PathPrefix` declaration. All routes and links are built from `PathPrefix`.
+- `grep -rn "\"/inspected" harness/inspected --include=*.go` prints, outside `*_test.go` files, exactly one match: the `PathPrefix` declaration. All routes and links are built from `PathPrefix`.
 - `harness/inspected` does not import `harness/workbench`.
 - `go-arch-lint check` prints `OK - No warnings found`.
 - `task all` exits 0.

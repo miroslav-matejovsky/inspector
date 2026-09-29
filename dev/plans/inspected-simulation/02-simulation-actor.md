@@ -256,8 +256,8 @@ Actor tests use plain Go and `require`. The `ergo.services/ergo/testing` package
 
 ```powershell
 go test ./harness/inspected/simulation/...
-git grep -n -e "time.Sleep" -e "time.After" -- harness/inspected/simulation
-git grep -n -e "sync.Mutex" -e "sync.RWMutex" -- harness/inspected/simulation
+grep -rnE "time\.Sleep|time\.After" harness/inspected/simulation
+grep -rnE "sync\.(RW)?Mutex" harness/inspected/simulation
 go-arch-lint check
 task all
 ```
@@ -265,8 +265,8 @@ task all
 ## Acceptance Criteria
 
 - `go test ./harness/inspected/simulation/...` exits 0 and runs every test listed above.
-- `git grep -n -e "time.Sleep" -e "time.After" -- harness/inspected/simulation` prints nothing.
-- `git grep -n -e "sync.Mutex" -e "sync.RWMutex" -- harness/inspected/simulation` prints nothing.
+- `grep -rnE "time\.Sleep|time\.After" harness/inspected/simulation` prints nothing.
+- `grep -rnE "sync\.(RW)?Mutex" harness/inspected/simulation` prints nothing.
 - `harness/inspected/simulation` imports no module outside stdlib and `harness/inspected/fulfillment`.
 - `go-arch-lint check` prints `OK - No warnings found`.
 - `task all` exits 0.

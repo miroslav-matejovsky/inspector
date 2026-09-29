@@ -125,7 +125,7 @@ task all
 - `go.mod` requires `github.com/prometheus/client_golang v1.24.1`.
 - `go test ./harness/inspected/metrics/...` exits 0 and runs every test listed above.
 - `TestMetricsPassLint` passes (zero `promlint` problems).
-- `git grep -n -e "prometheus.MustRegister" -e "prometheus.DefaultRegisterer" -e "promauto" -- harness` prints nothing.
+- `grep -rnE "prometheus\.MustRegister|prometheus\.DefaultRegisterer|promauto" harness` prints nothing.
 - `harness/inspected/metrics` imports no project package other than `harness/inspected/fulfillment`.
 - `go-arch-lint check` prints `OK - No warnings found`.
 - `task all` exits 0.

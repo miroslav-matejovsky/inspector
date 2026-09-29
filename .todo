@@ -6,7 +6,3 @@ Keep this file short; active implementation plans live in `dev/plans/`,
 the structured backlog of lower-priority follow-ups lives in `dev/backlog/` (start at `dev/backlog/README.md`),
 and the architecture overview lives in `README.md`.
 
-## path-mention VS Code extension
-
-- Verify `task vscode-ext-install` replaces the old junction at `~/.vscode/extensions/local.path-mention-0.1.0` with a real folder and the extension still works after `Developer: Reload Window`.
-- Before first `vsce package`: add a `LICENSE` file to `.vscode/extensions/path-mention` (vsce looks only in the extension folder, root `LICENSE` is not found) and set a real marketplace `publisher` if publishing.

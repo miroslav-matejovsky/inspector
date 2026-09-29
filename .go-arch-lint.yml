@@ -20,10 +20,17 @@ excludeFiles:
 # vendors:
 #   x-sync: { in: "golang.org/x/sync/**" }
 #   ergo:   { in: "ergo.services/ergo/**" }
+vendors:
+  prometheus: { in: "github.com/prometheus/**" }
 
 components:
   cmd: { in: cmd/** }
   workbench: { in: harness/workbench }
+  fulfillment: { in: harness/inspected/fulfillment }
+  simulation: { in: harness/inspected/simulation }
+  metrics: { in: harness/inspected/metrics }
+  health: { in: harness/inspected/health }
+  inspected: { in: harness/inspected }
   # Example for a real project, one entry per domain package:
   #
   # orders:   { in: internal/orders }
@@ -35,6 +42,18 @@ deps:
   cmd:
     anyProjectDeps: true
     anyVendorDeps: true
+  workbench:
+    mayDependOn: [inspected]
+  simulation:
+    mayDependOn: [fulfillment]
+  metrics:
+    mayDependOn: [fulfillment]
+    canUse: [prometheus]
+  health:
+    mayDependOn: [fulfillment]
+  inspected:
+    mayDependOn: [fulfillment, simulation, metrics, health]
+    canUse: [prometheus]
   # Example for a real project, each component lists what it may import:
   #
   # orders:
