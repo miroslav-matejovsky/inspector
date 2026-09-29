@@ -22,7 +22,8 @@ excludeFiles:
 #   ergo:   { in: "ergo.services/ergo/**" }
 
 components:
-  cmd: { in: cmd }
+  cmd: { in: cmd/** }
+  workbench: { in: harness/workbench }
   # Example for a real project, one entry per domain package:
   #
   # orders:   { in: internal/orders }

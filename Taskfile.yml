@@ -81,11 +81,11 @@ tasks:
 
 # ---- running stuff ----
 
-  run:
-    desc: Run the application (for development)
+  workbench:
+    desc: Run the development workbench web server on localhost:8080
     silent: true
     cmds:
-      - go run ./cmd/...
+      - go run ./cmd/workbench -addr localhost:8080
 
 # ---- release ----
 
