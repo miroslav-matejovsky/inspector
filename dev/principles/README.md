@@ -6,4 +6,3 @@ A good principle remains valid even if the implementation changes completely.
 
 | Principle | Description |
 |-----------|-------------|
-| TODO | Describe the principle here |
