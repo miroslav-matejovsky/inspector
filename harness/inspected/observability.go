@@ -16,6 +16,7 @@ func (a *App) handleIndex(w http.ResponseWriter, _ *http.Request) {
 			"health_ready": PathPrefix + pathHealthReady,
 			"metrics":      PathPrefix + pathMetrics,
 			"simulation":   PathPrefix + pathSim,
+			"dependencies": PathPrefix + pathDependencies,
 			"products":     PathPrefix + pathProducts,
 			"orders":       PathPrefix + pathOrders,
 		},

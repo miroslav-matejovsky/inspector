@@ -159,3 +159,45 @@ func TestUnknownPathAndMethod(t *testing.T) {
 	require.Equal(t, http.StatusNotFound, serve(t, h, http.MethodGet, prefix+"/nope", "").Code)
 	require.Equal(t, http.StatusMethodNotAllowed, serve(t, h, http.MethodPost, prefix+"/health/live", "").Code)
 }
+
+// checkCauses returns the cause links of each readiness check by name.
+func checkCauses(t *testing.T, h http.Handler) map[string][]string {
+	t.Helper()
+	rec := serve(t, h, http.MethodGet, prefix+"/health/ready", "")
+	body := decode[struct {
+		Checks []struct {
+			Name   string
+			Causes []string
+		}
+	}](t, rec)
+	out := map[string][]string{}
+	for _, c := range body.Checks {
+		out[c.Name] = c.Causes
+	}
+	return out
+}
+
+func TestReadinessCheckCauses(t *testing.T) {
+	app := startApp(t, testConfig())
+	h := app.Handler()
+	serve(t, h, http.MethodPut, prefix+"/sim/dependencies/payment-gateway", `{"mode":"outage"}`)
+
+	causes := checkCauses(t, h)
+
+	require.Equal(t, []string{prefix + "/api/dependencies/payment-gateway"}, causes["payment-gateway"])
+	require.Equal(t, []string{prefix + "/api/dependencies/warehouse"}, causes["warehouse"])
+	require.Empty(t, causes["inventory"])
+}
+
+func TestReadinessInventoryCauses(t *testing.T) {
+	app := startApp(t, testConfig())
+	h := app.Handler()
+	for range 11 {
+		serve(t, h, http.MethodPost, prefix+"/api/orders", `{"sku":"sku-003","quantity":1}`)
+	}
+	serve(t, h, http.MethodPost, prefix+"/sim/advance", `{"ticks":2}`)
+
+	causes := checkCauses(t, h)
+
+	require.Equal(t, []string{prefix + "/api/products/sku-003"}, causes["inventory"])
+}

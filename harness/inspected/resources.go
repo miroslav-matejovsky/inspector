@@ -28,9 +28,10 @@ type healthResource struct {
 }
 
 type checkResource struct {
-	Name   string `json:"name"`
-	Status string `json:"status"`
-	Reason string `json:"reason,omitempty"`
+	Name   string   `json:"name"`
+	Status string   `json:"status"`
+	Reason string   `json:"reason,omitempty"`
+	Causes []string `json:"causes,omitempty"` // links of the resources that determine the status
 }
 
 type simulationResource struct {
@@ -43,8 +44,17 @@ type simulationResource struct {
 }
 
 type dependencyResource struct {
-	Name string `json:"name"`
-	Mode string `json:"mode"`
+	Name  string          `json:"name"`
+	Mode  string          `json:"mode"`
+	Links dependencyLinks `json:"links"`
+}
+
+type dependencyLinks struct {
+	Self string `json:"self"` // the dependency
+}
+
+type dependencyListResource struct {
+	Dependencies []dependencyResource `json:"dependencies"`
 }
 
 type clockRequest struct {
@@ -71,13 +81,21 @@ type errorBody struct {
 func healthResourceOf(r health.Report) healthResource {
 	checks := make([]checkResource, 0, len(r.Checks))
 	for _, c := range r.Checks {
-		checks = append(checks, checkResource{Name: c.Name, Status: string(c.Status), Reason: c.Reason})
+		var causes []string
+		if c.Dependency != "" {
+			causes = append(causes, dependencyURL(string(c.Dependency)))
+		}
+		for _, sku := range c.OutOfStock {
+			causes = append(causes, productURL(string(sku)))
+		}
+		checks = append(checks, checkResource{Name: c.Name, Status: string(c.Status), Reason: c.Reason, Causes: causes})
 	}
 	return healthResource{Status: string(r.Status), Checks: checks}
 }
 
 func dependencyResourceOf(d fulfillment.Dependency) dependencyResource {
-	return dependencyResource{Name: string(d.Name), Mode: string(d.Mode)}
+	name := string(d.Name)
+	return dependencyResource{Name: name, Mode: string(d.Mode), Links: dependencyLinks{Self: dependencyURL(name)}}
 }
 
 func (a *App) simulationResourceOf(s simulation.Status) simulationResource {
@@ -129,11 +147,13 @@ type transitionResource struct {
 	To     string `json:"to"`
 	AtTick uint64 `json:"at_tick"`
 	Reason string `json:"reason"`
+	Cause  string `json:"cause,omitempty"` // link of the resource that decided the transition
 }
 
 type orderLinks struct {
-	Self    string `json:"self"`    // the order
-	Product string `json:"product"` // the ordered product
+	Self      string `json:"self"`                 // the order
+	Product   string `json:"product"`              // the ordered product
+	WaitingOn string `json:"waiting_on,omitempty"` // the dependency an open order waits on
 }
 
 type productListResource struct {
@@ -147,6 +167,22 @@ type orderListResource struct {
 type placeOrderRequest struct {
 	SKU      string `json:"sku"`
 	Quantity int    `json:"quantity"`
+}
+
+func dependencyURL(name string) string {
+	return PathPrefix + pathDependencies + "/" + url.PathEscape(name)
+}
+
+// causeURL returns the link of the resource that decided a transition, or ""
+// when the order itself decided it.
+func causeURL(c fulfillment.Cause) string {
+	switch {
+	case c.Dependency != "":
+		return dependencyURL(string(c.Dependency))
+	case c.Product != "":
+		return productURL(string(c.Product))
+	}
+	return ""
 }
 
 func productURL(sku string) string {
@@ -177,10 +213,14 @@ func orderResourceOf(o fulfillment.Order) orderResource {
 	history := make([]transitionResource, 0, len(o.History))
 	for _, t := range o.History {
 		history = append(history, transitionResource{
-			From: string(t.From), To: string(t.To), AtTick: uint64(t.At), Reason: string(t.Reason),
+			From: string(t.From), To: string(t.To), AtTick: uint64(t.At), Reason: string(t.Reason), Cause: causeURL(t.Cause),
 		})
 	}
 	id := string(o.ID)
+	links := orderLinks{Self: orderURL(id), Product: productURL(string(o.SKU))}
+	if dep, ok := o.Status.StageDependency(); ok {
+		links.WaitingOn = dependencyURL(string(dep))
+	}
 	return orderResource{
 		ID:            id,
 		SKU:           string(o.SKU),
@@ -192,6 +232,6 @@ func orderResourceOf(o fulfillment.Order) orderResource {
 		UpdatedAtTick: uint64(o.UpdatedAt),
 		FailureReason: string(o.FailureReason),
 		History:       history,
-		Links:         orderLinks{Self: orderURL(id), Product: productURL(string(o.SKU))},
+		Links:         links,
 	}
 }

@@ -67,4 +67,25 @@ func TestObserveInspectedService(t *testing.T) {
 	require.Contains(t, s.Relations(), observation.Relation{
 		From: ref("order", placed.ID), Kind: "for_product", To: ref("product", "sku-001"),
 	})
+
+	order, ok := s.Entity(ref("order", placed.ID))
+	require.True(t, ok)
+	require.Equal(t, "order_placed", order.Reason)
+	require.Equal(t, []observation.Transition{{To: "pending", At: "tick 0", Reason: "order_placed"}}, order.History)
+	for _, check := range byKind["health_check"] {
+		require.Empty(t, check.Reason, check.Ref)
+	}
+
+	require.Equal(t, map[string]string{"payment-gateway": "healthy", "warehouse": "healthy"}, states("dependency"))
+	require.Contains(t, s.Relations(), observation.Relation{
+		From: ref("order", placed.ID), Kind: "waits_on", To: ref("dependency", "payment-gateway"), Cause: true,
+	})
+	require.Contains(t, s.Relations(), observation.Relation{
+		From: ref("health_check", "payment-gateway"), Kind: "caused_by", To: ref("dependency", "payment-gateway"), Cause: true,
+	})
+	for _, r := range s.Relations() {
+		if r.Kind == "has_check" {
+			require.True(t, r.Cause, r.To)
+		}
+	}
 }

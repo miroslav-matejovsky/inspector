@@ -14,7 +14,8 @@ The library knows no inspected system:
 | `observation` | Observation | Domain-neutral model of observed state: entities, relations, snapshots. | stdlib |
 | `navigation` | Navigation | Links of an entity in a snapshot, outgoing and incoming. | `observation` |
 | `connectivity` | Connectivity | Read-only access to sources: GET-only JSON document reader over HTTP. | stdlib |
-| `representation` | Representation | JSON views of snapshots over HTTP with navigable hrefs. | `observation`, `navigation` |
+| `explanation` | Explanation | Why an entity is in its state: cause tree and root causes from cause relations. | `observation` |
+| `representation` | Representation | JSON views of snapshots over HTTP with navigable hrefs. | `observation`, `navigation`, `explanation` |
 
 A consumer maps its own system into the library model. The harness maps the inspected simulation in `harness/adapter`.
 

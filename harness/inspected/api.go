@@ -109,3 +109,38 @@ func (a *App) handlePlaceOrder(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Location", res.Links.Self)
 	writeJSON(w, http.StatusCreated, res)
 }
+
+func (a *App) handleListDependencies(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := a.requestContext(r)
+	defer cancel()
+
+	snap, err := a.sim.Snapshot(ctx)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	deps := make([]dependencyResource, 0, len(snap.Dependencies))
+	for _, d := range snap.Dependencies {
+		deps = append(deps, dependencyResourceOf(d))
+	}
+	writeJSON(w, http.StatusOK, dependencyListResource{Dependencies: deps})
+}
+
+func (a *App) handleGetDependency(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := a.requestContext(r)
+	defer cancel()
+
+	snap, err := a.sim.Snapshot(ctx)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	name := r.PathValue("name")
+	for _, d := range snap.Dependencies {
+		if string(d.Name) == name {
+			writeJSON(w, http.StatusOK, dependencyResourceOf(d))
+			return
+		}
+	}
+	writeErrorCode(w, http.StatusNotFound, "dependency_not_found", fmt.Sprintf("dependency %q not found", name))
+}

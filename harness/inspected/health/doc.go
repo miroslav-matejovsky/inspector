@@ -16,6 +16,9 @@
 //	every product in stock       -> up
 //	some products out of stock   -> degraded, "out of stock: <sku>, <sku>"
 //
+// A dependency check names the dependency it reads in Check.Dependency. The
+// inventory check lists the products with zero stock in Check.OutOfStock.
+//
 // # Overall status
 //
 // The report status is the worst check status: down, then degraded, then up.

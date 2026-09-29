@@ -8,8 +8,10 @@ and the architecture overview lives in `README.md`.
 
 ## Inspector in the workbench
 
-- Run `task workbench`, open http://localhost:8080/inspector/: `kinds` lists `service` (1), `health_check` (3), `product` (5) and, after the first ticks, `order`.
+- Run `task workbench`, open http://localhost:8080/inspector/: `kinds` lists `service` (1), `health_check` (3), `dependency` (2), `product` (5) and, after the first ticks, `order`.
 - Follow `entities_href`, then the `href` of an order: `related` contains `for_product` to its product. The product's `related` lists the order as `incoming`.
-- `curl -X PUT -d '{"mode":"outage"}' http://localhost:8080/inspected/sim/dependencies/warehouse`: `/inspector/entities/service/inspected` shows state `down`; `/inspector/entities/health_check/warehouse` shows state `down` and attribute `reason`. Set `healthy` again.
+- `curl -X PUT -d '{"mode":"outage"}' http://localhost:8080/inspected/sim/dependencies/warehouse`: `/inspector/entities/service/inspected` shows state `down`; `/inspector/entities/health_check/warehouse` shows state `down` and a `reason`. Set `healthy` again.
+- `curl -X PUT -d '{"mode":"outage"}' http://localhost:8080/inspected/sim/dependencies/payment-gateway`, wait 5 seconds: `/inspector/entities/service/inspected/explanation` has one root cause, `dependency/payment-gateway` with state `outage`.
+- Open the explanation of an order that failed with `payment_gateway_unavailable`: its root cause is `dependency/payment-gateway` and its history ends with that reason. Set `healthy` again.
 - Press Ctrl+C: the process exits with code 0 within 5 seconds.
 

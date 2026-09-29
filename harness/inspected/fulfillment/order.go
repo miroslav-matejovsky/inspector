@@ -59,12 +59,34 @@ const (
 	ReasonWarehouseUnavailable      Reason = "warehouse_unavailable"
 )
 
+// StageDependency returns the dependency an order in status s waits for:
+// payment-gateway while pending, warehouse while paid. Terminal statuses wait
+// for nothing and return false.
+func (s OrderStatus) StageDependency() (DependencyName, bool) {
+	switch s {
+	case StatusPending:
+		return DependencyPaymentGateway, true
+	case StatusPaid:
+		return DependencyWarehouse, true
+	}
+	return "", false
+}
+
+// Cause names what decided a transition, as known when it happened. At most
+// one field is set. Both are empty when the order itself decided: its
+// placement, or a payment declined because TotalCents exceeds PaymentLimitCents.
+type Cause struct {
+	Dependency DependencyName // the dependency whose call decided the transition
+	Product    SKU            // the product whose stock decided the transition
+}
+
 // Transition is one entry of an order history.
 type Transition struct {
 	From   OrderStatus // empty for the initial entry
 	To     OrderStatus
 	At     Tick
 	Reason Reason
+	Cause  Cause
 }
 
 // TransitionRule is a status change the domain allows.

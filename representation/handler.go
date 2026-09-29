@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"regexp"
 
+	"github.com/miroslav-matejovsky/inspector/explanation"
 	"github.com/miroslav-matejovsky/inspector/navigation"
 	"github.com/miroslav-matejovsky/inspector/observation"
 )
@@ -42,6 +43,7 @@ func NewHandler(prefix string, observer Observer) (http.Handler, error) {
 	mux.HandleFunc("GET "+prefix+"/{$}", h.handleOverview)
 	mux.HandleFunc("GET "+prefix+"/entities", h.handleEntities)
 	mux.HandleFunc("GET "+prefix+"/entities/{kind}/{id}", h.handleEntity)
+	mux.HandleFunc("GET "+prefix+"/entities/{kind}/{id}/explanation", h.handleExplanation)
 	return mux, nil
 }
 
@@ -75,6 +77,7 @@ func (h *handler) handleOverview(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, overviewResource{
 		ObservedAt:   snap.ObservedAt(),
+		Gaps:         gapsOf(snap),
 		EntitiesHref: h.entitiesHref(),
 		Kinds:        kinds,
 	})
@@ -97,7 +100,7 @@ func (h *handler) handleEntities(w http.ResponseWriter, r *http.Request) {
 			Kind: e.Ref.Kind, ID: e.Ref.ID, State: e.State, Href: h.entityHref(e.Ref),
 		})
 	}
-	writeJSON(w, http.StatusOK, entityListResource{ObservedAt: snap.ObservedAt(), Entities: entities})
+	writeJSON(w, http.StatusOK, entityListResource{ObservedAt: snap.ObservedAt(), Gaps: gapsOf(snap), Entities: entities})
 }
 
 // handleEntity shows one entity with its attributes and related entities.
@@ -125,15 +128,49 @@ func (h *handler) handleEntity(w http.ResponseWriter, r *http.Request) {
 	related := make([]relatedResource, 0, len(links))
 	for _, l := range links {
 		related = append(related, relatedResource{
-			Relation: l.Relation, Direction: string(l.Direction), Target: h.refResourceOf(l.Target),
+			Relation: l.Relation, Direction: string(l.Direction), Cause: l.Cause, Target: h.refResourceOf(l.Target),
 		})
 	}
 	writeJSON(w, http.StatusOK, entityDetailResource{
 		ObservedAt: snap.ObservedAt(),
+		Gaps:       gapsOf(snap),
 		Entity: entityResource{
-			Kind: ref.Kind, ID: ref.ID, State: entity.State, Href: h.entityHref(ref), Attributes: attributes,
+			Kind: ref.Kind, ID: ref.ID, State: entity.State, Reason: entity.Reason, Href: h.entityHref(ref),
+			Attributes: attributes, History: historyOf(entity.History),
 		},
-		Related: related,
+		Related:         related,
+		ExplanationHref: h.explanationHref(ref),
+	})
+}
+
+// handleExplanation shows why one entity is in its state: the cause tree and
+// the root causes.
+func (h *handler) handleExplanation(w http.ResponseWriter, r *http.Request) {
+	snap, ok := h.observe(w, r)
+	if !ok {
+		return
+	}
+	ref := observation.Ref{Kind: r.PathValue("kind"), ID: r.PathValue("id")}
+	e, err := explanation.Explain(snap, ref)
+	switch {
+	case errors.Is(err, explanation.ErrUnknownEntity):
+		writeError(w, http.StatusNotFound, "entity_not_found", fmt.Sprintf("entity %s not found", ref))
+		return
+	case err != nil:
+		writeError(w, http.StatusInternalServerError, "internal_error", err.Error())
+		return
+	}
+
+	roots := []rootCauseResource{}
+	for _, root := range e.Roots() {
+		entity, _ := snap.Entity(root) // roots are entities of the snapshot
+		roots = append(roots, rootCauseResource{Kind: root.Kind, ID: root.ID, State: entity.State, Href: h.entityHref(root)})
+	}
+	writeJSON(w, http.StatusOK, explanationViewResource{
+		ObservedAt:  snap.ObservedAt(),
+		Gaps:        gapsOf(snap),
+		Explanation: h.explanationResourceOf(e),
+		RootCauses:  roots,
 	})
 }
 

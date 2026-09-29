@@ -119,7 +119,7 @@ func TestInspectorHandlerObservesInspected(t *testing.T) {
 	}
 	var overview struct{ Kinds []kind }
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &overview))
-	require.Equal(t, []kind{{"service", 1}, {"health_check", 3}, {"product", 5}}, overview.Kinds)
+	require.Equal(t, []kind{{"service", 1}, {"health_check", 3}, {"dependency", 2}, {"product", 5}}, overview.Kinds)
 }
 
 func TestInspectorHandlerRejectsInvalidConfig(t *testing.T) {

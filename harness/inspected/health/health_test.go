@@ -27,8 +27,8 @@ func TestEvaluateAllHealthy(t *testing.T) {
 	require.Equal(t, health.Report{
 		Status: health.StatusUp,
 		Checks: []health.Check{
-			{Name: "payment-gateway", Status: health.StatusUp},
-			{Name: "warehouse", Status: health.StatusUp},
+			{Name: "payment-gateway", Status: health.StatusUp, Dependency: fulfillment.DependencyPaymentGateway},
+			{Name: "warehouse", Status: health.StatusUp, Dependency: fulfillment.DependencyWarehouse},
 			{Name: health.CheckInventory, Status: health.StatusUp},
 		},
 	}, got)
@@ -41,7 +41,7 @@ func TestEvaluateSlowDependency(t *testing.T) {
 
 	require.Equal(t, health.StatusDegraded, got.Status)
 	require.Equal(t, health.Check{
-		Name: "payment-gateway", Status: health.StatusDegraded,
+		Name: "payment-gateway", Status: health.StatusDegraded, Dependency: fulfillment.DependencyPaymentGateway,
 		Reason: "payment-gateway is slow: calls take 3 ticks",
 	}, got.Checks[0])
 }
@@ -53,7 +53,7 @@ func TestEvaluateOutage(t *testing.T) {
 
 	require.Equal(t, health.StatusDown, got.Status)
 	require.Equal(t, health.Check{
-		Name: "warehouse", Status: health.StatusDown,
+		Name: "warehouse", Status: health.StatusDown, Dependency: fulfillment.DependencyWarehouse,
 		Reason: "warehouse is in outage: calls fail",
 	}, got.Checks[1])
 }
@@ -76,7 +76,7 @@ func TestEvaluateOutOfStock(t *testing.T) {
 
 	require.Equal(t, health.StatusDegraded, got.Status)
 	require.Equal(t, health.Check{
-		Name: health.CheckInventory, Status: health.StatusDegraded,
+		Name: health.CheckInventory, Status: health.StatusDegraded, OutOfStock: []fulfillment.SKU{"sku-002", "sku-005"},
 		Reason: "out of stock: sku-002, sku-005",
 	}, got.Checks[2])
 }

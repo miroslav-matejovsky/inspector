@@ -158,18 +158,18 @@ func (s *State) processPayment(rec *orderRecord, events []Event) []Event {
 		events = append(events, DependencyCalled{Dependency: DependencyPaymentGateway, Succeeded: false, At: s.now})
 		rec.attempts++
 		if rec.attempts >= MaxStageAttempts {
-			return s.transition(rec, StatusFailed, ReasonPaymentGatewayUnavailable, events)
+			return s.transition(rec, StatusFailed, ReasonPaymentGatewayUnavailable, Cause{Dependency: DependencyPaymentGateway}, events)
 		}
 		rec.waitTicks = HealthyLatencyTicks
 		return events
 	}
 	events = append(events, DependencyCalled{Dependency: DependencyPaymentGateway, Succeeded: true, At: s.now})
 	if rec.order.TotalCents > PaymentLimitCents {
-		return s.transition(rec, StatusFailed, ReasonPaymentDeclined, events)
+		return s.transition(rec, StatusFailed, ReasonPaymentDeclined, Cause{}, events)
 	}
 	rec.attempts = 0
 	rec.waitTicks = latency(s.mode(DependencyWarehouse))
-	return s.transition(rec, StatusPaid, ReasonPaymentAuthorized, events)
+	return s.transition(rec, StatusPaid, ReasonPaymentAuthorized, Cause{Dependency: DependencyPaymentGateway}, events)
 }
 
 func (s *State) processShipment(rec *orderRecord, events []Event) []Event {
@@ -177,7 +177,7 @@ func (s *State) processShipment(rec *orderRecord, events []Event) []Event {
 		events = append(events, DependencyCalled{Dependency: DependencyWarehouse, Succeeded: false, At: s.now})
 		rec.attempts++
 		if rec.attempts >= MaxStageAttempts {
-			return s.transition(rec, StatusFailed, ReasonWarehouseUnavailable, events)
+			return s.transition(rec, StatusFailed, ReasonWarehouseUnavailable, Cause{Dependency: DependencyWarehouse}, events)
 		}
 		rec.waitTicks = HealthyLatencyTicks
 		return events
@@ -185,15 +185,15 @@ func (s *State) processShipment(rec *orderRecord, events []Event) []Event {
 	events = append(events, DependencyCalled{Dependency: DependencyWarehouse, Succeeded: true, At: s.now})
 	product := s.product(rec.order.SKU)
 	if product.Stock < rec.order.Quantity {
-		return s.transition(rec, StatusFailed, ReasonOutOfStock, events)
+		return s.transition(rec, StatusFailed, ReasonOutOfStock, Cause{Product: rec.order.SKU}, events)
 	}
 	product.Stock -= rec.order.Quantity
-	return s.transition(rec, StatusShipped, ReasonShipped, events)
+	return s.transition(rec, StatusShipped, ReasonShipped, Cause{Dependency: DependencyWarehouse}, events)
 }
 
-// transition moves an order to a new status. A change that is not in
-// AllowedTransitions is a programming error and panics.
-func (s *State) transition(rec *orderRecord, to OrderStatus, reason Reason, events []Event) []Event {
+// transition moves an order to a new status and records what decided it. A
+// change that is not in AllowedTransitions is a programming error and panics.
+func (s *State) transition(rec *orderRecord, to OrderStatus, reason Reason, cause Cause, events []Event) []Event {
 	from := rec.order.Status
 	rule := TransitionRule{From: from, To: to, Reason: reason}
 	if !slices.Contains(AllowedTransitions(), rule) {
@@ -204,7 +204,7 @@ func (s *State) transition(rec *orderRecord, to OrderStatus, reason Reason, even
 	if to == StatusFailed {
 		rec.order.FailureReason = reason
 	}
-	rec.order.History = append(rec.order.History, Transition{From: from, To: to, At: s.now, Reason: reason})
+	rec.order.History = append(rec.order.History, Transition{From: from, To: to, At: s.now, Reason: reason, Cause: cause})
 	return append(events, OrderStatusChanged{
 		Order: rec.order.ID, SKU: rec.order.SKU, From: from, To: to,
 		Reason: reason, PlacedAt: rec.order.PlacedAt, At: s.now,

@@ -3,11 +3,14 @@
 # rejects vocabulary in code, comments, test fixtures and docs of the library
 # folders given as arguments.
 #
-# Rejected words (case-insensitive, whole words):
+# Rejected words (case-insensitive). Letters and digits continue a word;
+# every other character, including "_" and "-", separates words:
 #   harness, /inspected                  the harness and its URL space
 #   fulfillment, sku, product, payment,
 #   warehouse, restock*, reorder*        the simulated fulfillment domain
 #   tick, ticks                          the simulation time model
+#   health_check, has_check, waits_on,
+#   failure_reason                       vocabulary of harness/adapter
 #   "order", "orders"                    hardcoded entity kinds (quoted literals only;
 #                                        the English word "order" stays allowed)
 param(
@@ -15,7 +18,7 @@ param(
     [string[]]$Paths
 )
 
-$pattern = '(?i)\b(harness|fulfillment|skus?|products?|payments?|warehouses?|restock\w*|reorder\w*|ticks?)\b|"orders?"|/inspected\b'
+$pattern = '(?i)(?<![a-z0-9])(harness|fulfillment|skus?|products?|payments?|warehouses?|restock\w*|reorder\w*|ticks?|health_check|has_check|waits_on|failure_reason)(?![a-z0-9])|"orders?"|/inspected(?![a-z0-9])'
 
 foreach ($p in $Paths) {
     if (-not (Test-Path -LiteralPath $p -PathType Container)) {

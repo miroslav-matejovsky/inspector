@@ -23,6 +23,8 @@
 //	PUT  /inspected/sim/clock                   pause or resume the clock
 //	POST /inspected/sim/advance                 advance N ticks
 //	PUT  /inspected/sim/dependencies/{name}     set a dependency mode
+//	GET  /inspected/api/dependencies            list dependencies with their mode
+//	GET  /inspected/api/dependencies/{name}     one dependency
 //	GET  /inspected/api/products                list products
 //	GET  /inspected/api/products/{sku}          one product
 //	GET  /inspected/api/orders                  list orders, filters status and sku
@@ -33,8 +35,16 @@
 // operator. They are separate from the observation endpoints, which are all
 // read-only. Placing an order is the only business write.
 //
-// Products and orders carry links to related resources, and the index links
-// to every collection, so a client can navigate from any resource.
+// Products, orders and dependencies carry links to related resources, and the
+// index links to every collection, so a client can navigate from any resource.
+//
+// # Causes
+//
+// The service states the causes it knows as links. Every order history entry
+// links the dependency or product that decided it ("cause"); an open order
+// links the dependency it waits on ("links.waiting_on"); every readiness check
+// links the resources that determine its status ("causes"): its dependency,
+// or the products with zero stock for the inventory check.
 //
 // # JSON conventions
 //
@@ -46,7 +56,8 @@
 //
 //	invalid_request          400  malformed body, unknown field, missing field
 //	invalid_status           400  status filter is not pending, paid, shipped or failed
-//	unknown_dependency       404  no such dependency
+//	unknown_dependency       404  no such dependency (control endpoint)
+//	dependency_not_found     404  no such dependency
 //	product_not_found        404  no such product
 //	order_not_found          404  no such order
 //	invalid_advance          422  ticks outside 1..1000

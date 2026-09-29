@@ -16,7 +16,13 @@ var (
 		Ref: observation.Ref{Kind: "book", ID: "b1"}, State: "available",
 		Attributes: []observation.Attribute{{Name: "title", Value: "Dune"}},
 	}
-	b2 = observation.Entity{Ref: observation.Ref{Kind: "book", ID: "b2"}, State: "lent"}
+	b2 = observation.Entity{
+		Ref: observation.Ref{Kind: "book", ID: "b2"}, State: "lent", Reason: "borrowed",
+		History: []observation.Transition{
+			{To: "available", At: "day 1", Reason: "acquired"},
+			{From: "available", To: "lent", At: "day 3", Reason: "borrowed"},
+		},
+	}
 	a1 = observation.Entity{
 		Ref:        observation.Ref{Kind: "author", ID: "a1"},
 		Attributes: []observation.Attribute{{Name: "name", Value: "Frank Herbert"}},
@@ -35,7 +41,7 @@ func fixture() ([]observation.Entity, []observation.Relation) {
 func TestNewSnapshot(t *testing.T) {
 	entities, relations := fixture()
 
-	s, err := observation.NewSnapshot(observedAt, entities, relations)
+	s, err := observation.NewSnapshot(observedAt, entities, relations, nil)
 
 	require.NoError(t, err)
 	require.Equal(t, observedAt, s.ObservedAt())
@@ -44,16 +50,26 @@ func TestNewSnapshot(t *testing.T) {
 }
 
 func TestNewSnapshotWithoutEntities(t *testing.T) {
-	s, err := observation.NewSnapshot(observedAt, nil, nil)
+	s, err := observation.NewSnapshot(observedAt, nil, nil, nil)
 
 	require.NoError(t, err)
 	require.Empty(t, s.Entities())
 	require.Empty(t, s.Relations())
+	require.Empty(t, s.Gaps())
+}
+
+func TestNewSnapshotKeepsGaps(t *testing.T) {
+	gaps := []observation.Gap{{Source: "/a", Error: "x"}, {Source: "/b", Error: "y"}}
+
+	s, err := observation.NewSnapshot(observedAt, nil, nil, gaps)
+
+	require.NoError(t, err)
+	require.Equal(t, gaps, s.Gaps())
 }
 
 func TestSnapshotEntity(t *testing.T) {
 	entities, relations := fixture()
-	s, err := observation.NewSnapshot(observedAt, entities, relations)
+	s, err := observation.NewSnapshot(observedAt, entities, relations, nil)
 	require.NoError(t, err)
 
 	got, ok := s.Entity(b1.Ref)
@@ -69,7 +85,7 @@ func TestSnapshotEntityDistinguishesKinds(t *testing.T) {
 	book := observation.Entity{Ref: observation.Ref{Kind: "book", ID: "x"}, State: "b"}
 	author := observation.Entity{Ref: observation.Ref{Kind: "author", ID: "x"}, State: "a"}
 
-	s, err := observation.NewSnapshot(observedAt, []observation.Entity{book, author}, nil)
+	s, err := observation.NewSnapshot(observedAt, []observation.Entity{book, author}, nil, nil)
 	require.NoError(t, err)
 
 	got, ok := s.Entity(book.Ref)
@@ -91,7 +107,7 @@ func TestZeroSnapshot(t *testing.T) {
 
 func TestNewSnapshotAllowsSelfRelation(t *testing.T) {
 	_, err := observation.NewSnapshot(observedAt, []observation.Entity{b1},
-		[]observation.Relation{{From: b1.Ref, Kind: "cites", To: b1.Ref}})
+		[]observation.Relation{{From: b1.Ref, Kind: "cites", To: b1.Ref}}, nil)
 
 	require.NoError(t, err)
 }
@@ -102,6 +118,7 @@ func TestNewSnapshotRejects(t *testing.T) {
 		observedAt time.Time
 		entities   []observation.Entity
 		relations  []observation.Relation
+		gaps       []observation.Gap
 		detail     string
 	}{
 		"zero time": {
@@ -166,10 +183,37 @@ func TestNewSnapshotRejects(t *testing.T) {
 			},
 			detail: "relation 1: duplicate book/b1 -written_by-> author/a1",
 		},
+		"transition without target": {
+			observedAt: observedAt,
+			entities: []observation.Entity{{
+				Ref:     b1.Ref,
+				History: []observation.Transition{{From: "available", At: "day 2"}},
+			}},
+			detail: "entity book/b1: transition 0: empty target state",
+		},
+		"duplicate relation differing in cause": {
+			observedAt: observedAt,
+			entities:   []observation.Entity{b1, a1},
+			relations: []observation.Relation{
+				{From: b1.Ref, Kind: "written_by", To: a1.Ref},
+				{From: b1.Ref, Kind: "written_by", To: a1.Ref, Cause: true},
+			},
+			detail: "relation 1: duplicate book/b1 -written_by-> author/a1",
+		},
+		"empty gap source": {
+			observedAt: observedAt,
+			gaps:       []observation.Gap{{Error: "x"}},
+			detail:     "gap 0: empty source",
+		},
+		"empty gap error": {
+			observedAt: observedAt,
+			gaps:       []observation.Gap{{Source: "/a", Error: "x"}, {Source: "/b"}},
+			detail:     "gap 1: empty error",
+		},
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			_, err := observation.NewSnapshot(tc.observedAt, tc.entities, tc.relations)
+			_, err := observation.NewSnapshot(tc.observedAt, tc.entities, tc.relations, tc.gaps)
 
 			require.ErrorIs(t, err, observation.ErrInvalidSnapshot)
 			require.ErrorContains(t, err, tc.detail)
@@ -179,4 +223,13 @@ func TestNewSnapshotRejects(t *testing.T) {
 
 func TestRefString(t *testing.T) {
 	require.Equal(t, "book/b1", observation.Ref{Kind: "book", ID: "b1"}.String())
+}
+
+func TestNewSnapshotKeepsCause(t *testing.T) {
+	relations := []observation.Relation{{From: b1.Ref, Kind: "inspired_by", To: b2.Ref, Cause: true}}
+
+	s, err := observation.NewSnapshot(observedAt, []observation.Entity{b1, b2}, relations, nil)
+
+	require.NoError(t, err)
+	require.Equal(t, relations, s.Relations())
 }

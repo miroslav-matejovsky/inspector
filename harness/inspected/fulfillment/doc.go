@@ -28,6 +28,15 @@
 // in Order.History with its tick and Reason and is reported as an
 // OrderStatusChanged event.
 //
+// # Causes
+//
+// Every history entry records in Transition.Cause what decided it, as known
+// when it happened: the payment-gateway for payment_authorized and
+// payment_gateway_unavailable, the warehouse for shipped and
+// warehouse_unavailable, the order's product for out_of_stock. Placement and
+// payment_declined (the order's own total) have no cause. An open order waits
+// on the dependency of its stage, see OrderStatus.StageDependency.
+//
 // # Dependencies
 //
 // A dependency is healthy, slow or in outage. During an outage a call fails

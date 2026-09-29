@@ -13,6 +13,7 @@ type transitionBody struct {
 	To     string
 	AtTick uint64 `json:"at_tick"`
 	Reason string
+	Cause  string
 }
 
 type orderBody struct {
@@ -26,7 +27,10 @@ type orderBody struct {
 	UpdatedAtTick uint64 `json:"updated_at_tick"`
 	FailureReason string `json:"failure_reason"`
 	History       []transitionBody
-	Links         struct{ Self, Product string }
+	Links         struct {
+		Self, Product string
+		WaitingOn     string `json:"waiting_on"`
+	}
 }
 
 type productBody struct {
@@ -40,8 +44,9 @@ type productBody struct {
 }
 
 const (
-	productsPath = prefix + "/api/products"
-	ordersPath   = prefix + "/api/orders"
+	productsPath     = prefix + "/api/products"
+	ordersPath       = prefix + "/api/orders"
+	dependenciesPath = prefix + "/api/dependencies"
 )
 
 func TestListProducts(t *testing.T) {
@@ -86,6 +91,7 @@ func TestPlaceOrder(t *testing.T) {
 	require.Equal(t, []transitionBody{{To: "pending", AtTick: 0, Reason: "order_placed"}}, got.History)
 	require.Equal(t, prefix+"/api/orders/ord-000001", got.Links.Self)
 	require.Equal(t, prefix+"/api/products/sku-001", got.Links.Product)
+	require.Equal(t, prefix+"/api/dependencies/payment-gateway", got.Links.WaitingOn)
 }
 
 func TestPlaceOrderRejectsInvalidRequest(t *testing.T) {
@@ -131,9 +137,10 @@ func TestGetOrder(t *testing.T) {
 	require.Equal(t, "shipped", got.Status)
 	require.Equal(t, []transitionBody{
 		{To: "pending", AtTick: 0, Reason: "order_placed"},
-		{From: "pending", To: "paid", AtTick: 1, Reason: "payment_authorized"},
-		{From: "paid", To: "shipped", AtTick: 2, Reason: "shipped"},
+		{From: "pending", To: "paid", AtTick: 1, Reason: "payment_authorized", Cause: prefix + "/api/dependencies/payment-gateway"},
+		{From: "paid", To: "shipped", AtTick: 2, Reason: "shipped", Cause: prefix + "/api/dependencies/warehouse"},
 	}, got.History)
+	require.Empty(t, got.Links.WaitingOn)
 
 	rec = serve(t, h, http.MethodGet, ordersPath+"/ord-999999", "")
 	require.Equal(t, http.StatusNotFound, rec.Code)
@@ -185,6 +192,7 @@ func TestIndexListsBusinessLinks(t *testing.T) {
 	links := decode[struct{ Links map[string]string }](t, rec).Links
 	require.Equal(t, productsPath, links["products"])
 	require.Equal(t, ordersPath, links["orders"])
+	require.Equal(t, dependenciesPath, links["dependencies"])
 }
 
 func TestOrdersMethodNotAllowed(t *testing.T) {
@@ -193,4 +201,30 @@ func TestOrdersMethodNotAllowed(t *testing.T) {
 	rec := serve(t, app.Handler(), http.MethodDelete, ordersPath, "")
 
 	require.Equal(t, http.StatusMethodNotAllowed, rec.Code)
+}
+
+func TestListDependencies(t *testing.T) {
+	app := startApp(t, testConfig())
+
+	rec := serve(t, app.Handler(), http.MethodGet, dependenciesPath, "")
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.JSONEq(t, `{"dependencies":[
+		{"name":"payment-gateway","mode":"healthy","links":{"self":"/inspected/api/dependencies/payment-gateway"}},
+		{"name":"warehouse","mode":"healthy","links":{"self":"/inspected/api/dependencies/warehouse"}}
+	]}`, rec.Body.String())
+}
+
+func TestGetDependency(t *testing.T) {
+	app := startApp(t, testConfig())
+	h := app.Handler()
+	serve(t, h, http.MethodPut, prefix+"/sim/dependencies/warehouse", `{"mode":"slow"}`)
+
+	rec := serve(t, h, http.MethodGet, dependenciesPath+"/warehouse", "")
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, "slow", decode[dependencyBody](t, rec).Mode)
+
+	rec = serve(t, h, http.MethodGet, dependenciesPath+"/unknown", "")
+	require.Equal(t, http.StatusNotFound, rec.Code)
+	require.Equal(t, "dependency_not_found", decode[errorBody](t, rec).Error.Code)
 }

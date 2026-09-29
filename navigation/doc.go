@@ -15,5 +15,10 @@
 // itself yields one link of each direction. Asking for an entity that is not
 // in the snapshot is an error wrapping ErrUnknownEntity.
 //
+// Link.Cause is copied from the relation. On an outgoing link it means the
+// state of Target is a cause of the starting entity's state; on an incoming
+// link it means the state of the starting entity is a cause of Target's
+// state. Cause relations let a user follow "what contributed to this".
+//
 // Links scans all relations of the snapshot; there is no index.
 package navigation

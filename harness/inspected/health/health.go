@@ -22,9 +22,11 @@ const CheckInventory = "inventory"
 
 // Check is the result of one health check.
 type Check struct {
-	Name   string // dependency name or CheckInventory
-	Status Status
-	Reason string // empty when Status is up
+	Name       string // dependency name or CheckInventory
+	Status     Status
+	Reason     string                     // empty when Status is up
+	Dependency fulfillment.DependencyName // the dependency this check reads; empty for the inventory check
+	OutOfStock []fulfillment.SKU          // inventory check: products with zero stock, in SKU order; nil otherwise
 }
 
 // Report is the readiness of the service.
@@ -53,29 +55,34 @@ func dependencyCheck(d fulfillment.Dependency) Check {
 	switch d.Mode {
 	case fulfillment.ModeSlow:
 		return Check{
-			Name: name, Status: StatusDegraded,
+			Name: name, Status: StatusDegraded, Dependency: d.Name,
 			Reason: fmt.Sprintf("%s is slow: calls take %d ticks", name, fulfillment.SlowLatencyTicks),
 		}
 	case fulfillment.ModeOutage:
-		return Check{Name: name, Status: StatusDown, Reason: fmt.Sprintf("%s is in outage: calls fail", name)}
+		return Check{
+			Name: name, Status: StatusDown, Dependency: d.Name,
+			Reason: fmt.Sprintf("%s is in outage: calls fail", name),
+		}
 	default:
-		return Check{Name: name, Status: StatusUp}
+		return Check{Name: name, Status: StatusUp, Dependency: d.Name}
 	}
 }
 
 func inventoryCheck(products []fulfillment.Product) Check {
-	var empty []string
+	var empty []fulfillment.SKU
+	var names []string
 	for _, p := range products {
 		if p.Stock == 0 {
-			empty = append(empty, string(p.SKU))
+			empty = append(empty, p.SKU)
+			names = append(names, string(p.SKU))
 		}
 	}
 	if len(empty) == 0 {
 		return Check{Name: CheckInventory, Status: StatusUp}
 	}
 	return Check{
-		Name: CheckInventory, Status: StatusDegraded,
-		Reason: "out of stock: " + strings.Join(empty, ", "),
+		Name: CheckInventory, Status: StatusDegraded, OutOfStock: empty,
+		Reason: "out of stock: " + strings.Join(names, ", "),
 	}
 }
 

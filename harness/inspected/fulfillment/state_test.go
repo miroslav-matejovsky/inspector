@@ -434,3 +434,86 @@ func TestStateIsDeterministic(t *testing.T) {
 	require.Equal(t, snapA, snapB)
 	require.Equal(t, eventsA, eventsB)
 }
+
+func TestTransitionCauses(t *testing.T) {
+	gateway := fulfillment.Cause{Dependency: fulfillment.DependencyPaymentGateway}
+	warehouse := fulfillment.Cause{Dependency: fulfillment.DependencyWarehouse}
+	tests := map[string]struct {
+		run    func(t *testing.T, s *fulfillment.State) fulfillment.OrderID
+		causes []fulfillment.Cause // expected cause per history entry
+	}{
+		"authorized and shipped": {
+			run: func(t *testing.T, s *fulfillment.State) fulfillment.OrderID {
+				o := place(t, s, "sku-001", 1)
+				tick(s, 2)
+				return o.ID
+			},
+			causes: []fulfillment.Cause{{}, gateway, warehouse},
+		},
+		"payment declined": {
+			run: func(t *testing.T, s *fulfillment.State) fulfillment.OrderID {
+				o := place(t, s, "sku-003", 2) // 65800 cents, above the limit
+				tick(s, 1)
+				return o.ID
+			},
+			causes: []fulfillment.Cause{{}, {}},
+		},
+		"payment gateway unavailable": {
+			run: func(t *testing.T, s *fulfillment.State) fulfillment.OrderID {
+				setMode(t, s, fulfillment.DependencyPaymentGateway, fulfillment.ModeOutage)
+				o := place(t, s, "sku-001", 1)
+				tick(s, 3)
+				return o.ID
+			},
+			causes: []fulfillment.Cause{{}, gateway},
+		},
+		"warehouse unavailable": {
+			run: func(t *testing.T, s *fulfillment.State) fulfillment.OrderID {
+				o := place(t, s, "sku-001", 1)
+				tick(s, 1)
+				setMode(t, s, fulfillment.DependencyWarehouse, fulfillment.ModeOutage)
+				tick(s, 3)
+				return o.ID
+			},
+			causes: []fulfillment.Cause{{}, gateway, warehouse},
+		},
+		"out of stock": {
+			run: func(t *testing.T, s *fulfillment.State) fulfillment.OrderID {
+				depleteSku003(t, s)
+				return "ord-000011"
+			},
+			causes: []fulfillment.Cause{{}, gateway, {Product: "sku-003"}},
+		},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			s := newState(t)
+
+			o := orderOf(t, s, tc.run(t, s))
+
+			var got []fulfillment.Cause
+			for _, tr := range o.History {
+				got = append(got, tr.Cause)
+			}
+			require.Equal(t, tc.causes, got)
+		})
+	}
+}
+
+func TestStageDependency(t *testing.T) {
+	tests := map[fulfillment.OrderStatus]struct {
+		dep fulfillment.DependencyName
+		ok  bool
+	}{
+		fulfillment.StatusPending: {fulfillment.DependencyPaymentGateway, true},
+		fulfillment.StatusPaid:    {fulfillment.DependencyWarehouse, true},
+		fulfillment.StatusShipped: {"", false},
+		fulfillment.StatusFailed:  {"", false},
+	}
+	for status, want := range tests {
+		dep, ok := status.StageDependency()
+
+		require.Equal(t, want.dep, dep, status)
+		require.Equal(t, want.ok, ok, status)
+	}
+}

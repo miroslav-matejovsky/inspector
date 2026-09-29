@@ -26,7 +26,7 @@ func fixture(t *testing.T) observation.Snapshot {
 			{From: b1, Kind: "written_by", To: a1},
 			{From: b2, Kind: "written_by", To: a1},
 			{From: b1, Kind: "cites", To: b2},
-		})
+		}, nil)
 	require.NoError(t, err)
 	return s
 }
@@ -62,7 +62,7 @@ func TestLinksOutgoingThenIncoming(t *testing.T) {
 
 func TestLinksWithoutRelations(t *testing.T) {
 	lonely := observation.Ref{Kind: "book", ID: "lonely"}
-	s, err := observation.NewSnapshot(observedAt, []observation.Entity{{Ref: lonely}}, nil)
+	s, err := observation.NewSnapshot(observedAt, []observation.Entity{{Ref: lonely}}, nil, nil)
 	require.NoError(t, err)
 
 	got, err := navigation.Links(s, lonely)
@@ -74,7 +74,7 @@ func TestLinksWithoutRelations(t *testing.T) {
 func TestLinksSelfRelation(t *testing.T) {
 	x := observation.Ref{Kind: "book", ID: "x"}
 	s, err := observation.NewSnapshot(observedAt, []observation.Entity{{Ref: x}},
-		[]observation.Relation{{From: x, Kind: "cites", To: x}})
+		[]observation.Relation{{From: x, Kind: "cites", To: x}}, nil)
 	require.NoError(t, err)
 
 	got, err := navigation.Links(s, x)
@@ -91,4 +91,18 @@ func TestLinksUnknownEntity(t *testing.T) {
 
 	require.ErrorIs(t, err, navigation.ErrUnknownEntity)
 	require.ErrorContains(t, err, "book/zz")
+}
+
+func TestLinksCarryCause(t *testing.T) {
+	s, err := observation.NewSnapshot(observedAt, []observation.Entity{{Ref: b1}, {Ref: b2}},
+		[]observation.Relation{{From: b1, Kind: "inspired_by", To: b2, Cause: true}}, nil)
+	require.NoError(t, err)
+
+	out, err := navigation.Links(s, b1)
+	require.NoError(t, err)
+	require.Equal(t, []navigation.Link{{Relation: "inspired_by", Direction: navigation.Outgoing, Target: b2, Cause: true}}, out)
+
+	in, err := navigation.Links(s, b2)
+	require.NoError(t, err)
+	require.Equal(t, []navigation.Link{{Relation: "inspired_by", Direction: navigation.Incoming, Target: b1, Cause: true}}, in)
 }

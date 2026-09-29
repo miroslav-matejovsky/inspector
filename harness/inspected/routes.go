@@ -15,6 +15,8 @@ const (
 	pathSimClock      = "/sim/clock"
 	pathSimAdvance    = "/sim/advance"
 	pathSimDependency = "/sim/dependencies/{name}"
+	pathDependencies  = "/api/dependencies"
+	pathDependency    = pathDependencies + "/{name}"
 	pathProducts      = "/api/products"
 	pathProduct       = pathProducts + "/{sku}"
 	pathOrders        = "/api/orders"
@@ -45,6 +47,8 @@ func (a *App) routes() []route {
 		{pattern(http.MethodPut, pathSimClock), "sim_clock", http.HandlerFunc(a.handleSimClock)},
 		{pattern(http.MethodPost, pathSimAdvance), "sim_advance", http.HandlerFunc(a.handleSimAdvance)},
 		{pattern(http.MethodPut, pathSimDependency), "sim_dependency", http.HandlerFunc(a.handleSimDependency)},
+		{pattern(http.MethodGet, pathDependencies), "dependencies", http.HandlerFunc(a.handleListDependencies)},
+		{pattern(http.MethodGet, pathDependency), "dependency", http.HandlerFunc(a.handleGetDependency)},
 		{pattern(http.MethodGet, pathProducts), "products", http.HandlerFunc(a.handleListProducts)},
 		{pattern(http.MethodGet, pathProduct), "product", http.HandlerFunc(a.handleGetProduct)},
 		{pattern(http.MethodGet, pathOrders), "orders", http.HandlerFunc(a.handleListOrders)},

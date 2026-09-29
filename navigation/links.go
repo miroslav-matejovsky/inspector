@@ -24,6 +24,7 @@ type Link struct {
 	Relation  string // observation.Relation.Kind
 	Direction Direction
 	Target    observation.Ref // the entity on the other end
+	Cause     bool            // copied from the relation, in both directions
 }
 
 // Links returns every link of the entity ref in s: first all outgoing links,
@@ -38,12 +39,12 @@ func Links(s observation.Snapshot, ref observation.Ref) ([]Link, error) {
 	links := []Link{}
 	for _, r := range s.Relations() {
 		if r.From == ref {
-			links = append(links, Link{Relation: r.Kind, Direction: Outgoing, Target: r.To})
+			links = append(links, Link{Relation: r.Kind, Direction: Outgoing, Target: r.To, Cause: r.Cause})
 		}
 	}
 	for _, r := range s.Relations() {
 		if r.To == ref {
-			links = append(links, Link{Relation: r.Kind, Direction: Incoming, Target: r.From})
+			links = append(links, Link{Relation: r.Kind, Direction: Incoming, Target: r.From, Cause: r.Cause})
 		}
 	}
 	return links, nil

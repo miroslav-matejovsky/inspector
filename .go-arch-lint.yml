@@ -34,6 +34,7 @@ components:
   navigation: { in: navigation }
   connectivity: { in: connectivity }
   representation: { in: representation }
+  explanation: { in: explanation }
   workbench: { in: harness/workbench }
   adapter: { in: harness/adapter }
   fulfillment: { in: harness/inspected/fulfillment }
@@ -54,8 +55,10 @@ deps:
     anyVendorDeps: true
   navigation:
     mayDependOn: [observation]
+  explanation:
+    mayDependOn: [observation]
   representation:
-    mayDependOn: [observation, navigation]
+    mayDependOn: [observation, navigation, explanation]
   workbench:
     mayDependOn: [inspected, adapter, connectivity, representation]
   adapter:

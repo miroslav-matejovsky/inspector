@@ -13,8 +13,20 @@
 // holds entities and relations:
 //
 //   - Entity: one thing that exists. It is identified by a Ref (Kind and ID),
-//     has an optional State and ordered Attributes (name and value).
+//     has an optional State, a Reason for that state, a History of
+//     Transitions that led to it, and ordered Attributes (name and value).
 //   - Relation: a directed, named connection From one entity To another.
+//
+// Reason and History are reported by the source, as it knows them. A
+// Transition's At is written in the source's own notation and is never
+// interpreted; the History is ordered oldest first. The library does not
+// check that the last transition matches the State: the source is
+// responsible for its own consistency.
+//
+// A relation with Cause set is a cause relation: the state of To is a cause
+// of the current state of From. The library never decides what causes what;
+// the source states it and the consumer maps it. A relation is identified by
+// From, Kind and To; two relations that differ only in Cause are duplicates.
 //
 // # Vocabulary
 //
@@ -32,6 +44,12 @@
 // among the entities, and no duplicate relation. Empty states, empty
 // attribute values, relations from an entity to itself and snapshots without
 // entities are allowed. Violations are errors wrapping ErrInvalidSnapshot.
+//
+// # Gaps
+//
+// A snapshot can be partial. Each Gap names a part of the source that could
+// not be observed and why. The entities and relations of that part are
+// missing from the snapshot. A gap needs a non-empty source and error.
 //
 // # Ownership
 //
