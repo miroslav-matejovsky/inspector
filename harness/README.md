@@ -28,6 +28,8 @@ Each run writes its log to `logs/workbench-<yyyyMMdd-HHmmss>.log`; the path is p
 
 Page. The page shows the raw view of package `view`, reloaded every 2 seconds: a table with one row per target (stored signals, then time, status, duration, size, content type and error of the latest signal), then the latest signal of each target with its body. JSON bodies are indented and highlighted, metrics are highlighted, other bodies are plain text; at most 500 lines per body are shown. `task workbench` reads the index, both health endpoints, the metrics and the three API collections. It does not read `/inspected/sim`.
 
+Controls. The page header has buttons `healthy`, `slow` and `outage` for `payment-gateway` and `warehouse`. The button of the current mode, read from `GET /inspected/sim`, is filled in the color of its mode. A button sets the dependency mode through `PUT /inspected/sim/dependencies/{name}` and reloads the page.
+
 ## inspected
 
 `inspected/` is a simulated order fulfillment service. It is the system that Inspector will inspect. It exposes a JSON API, health checks and Prometheus metrics, all under the path `/inspected`.

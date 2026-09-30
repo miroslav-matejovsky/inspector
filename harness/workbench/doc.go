@@ -24,6 +24,18 @@
 // view.Styles, and reloads every 2 seconds. When the summaries cannot be read
 // or rendered, the page shows the error instead, with status 500.
 //
+// # Controls
+//
+// The page header has one form per inspected dependency with a button per
+// mode (healthy, slow, outage). The workbench reads the dependencies and their
+// current modes from GET inspected.PathPrefix+"/sim" on every page render and
+// marks the button of the current mode active; when the read fails, the header
+// shows the error and the page answers 500. A button posts the mode to
+// "/controls/dependencies/{name}"; the workbench sends it to the inspected
+// control API, PUT inspected.PathPrefix+"/sim/dependencies/{name}", and
+// redirects back to the page. A rejected change answers with the status and
+// body of inspected. Both calls go to the inspected handler in process.
+//
 // # Configuration
 //
 // Config has no defaults. ParseConfig reads it from command-line flags and

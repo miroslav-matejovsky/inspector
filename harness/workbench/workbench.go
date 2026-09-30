@@ -37,16 +37,29 @@ type Signals interface {
 // inspected.PathPrefix+"/" to inspectedHandler, without stripping the prefix.
 // The page shows the raw view of the summaries of signals; a failed read or
 // render of signals is logged to logger and shown on the page with status 500.
+// The page has a form per inspected dependency with its current mode marked
+// active; a button posts its mode to "/controls/dependencies/{name}", see
+// setDependencyMode. A failed read of the modes is logged and shown in place
+// of the forms with status 500.
 func Handler(inspectedHandler http.Handler, signals Signals, logger *slog.Logger) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
 		data := struct {
 			RefreshSeconds int
+			Controls       []dependencyControl
+			ControlsError  string
 			Styles         template.CSS
 			View           template.HTML
 			Error          string
 		}{RefreshSeconds: pageRefreshSeconds, Styles: view.Styles}
 		status := http.StatusOK
+		controls, err := dependencyControls(r.Context(), inspectedHandler)
+		if err != nil {
+			logger.Error("workbench: read dependency modes", "error", err)
+			status = http.StatusInternalServerError
+			data.ControlsError = fmt.Sprintf("dependency modes unavailable: %v", err)
+		}
+		data.Controls = controls
 		summaries, err := signals.Summary(r.Context())
 		if err == nil {
 			data.View, err = view.Raw(summaries)
@@ -67,6 +80,9 @@ func Handler(inspectedHandler http.Handler, signals Signals, logger *slog.Logger
 		w.WriteHeader(status)
 		// A failed write to the client has no recovery.
 		_, _ = w.Write(buf.Bytes())
+	})
+	mux.HandleFunc("POST /controls/dependencies/{name}", func(w http.ResponseWriter, r *http.Request) {
+		setDependencyMode(w, r, inspectedHandler)
 	})
 	mux.Handle(inspected.PathPrefix+"/", inspectedHandler)
 	return mux

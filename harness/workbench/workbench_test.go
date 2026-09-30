@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -88,10 +89,11 @@ func startInspected(t *testing.T) *inspected.App {
 	return app
 }
 
-// page gets "/" from a workbench handler that shows summaries.
+// page gets "/" from a workbench handler of a running inspected app that
+// shows summaries.
 func page(t *testing.T, summaries ...source.TargetSummary) string {
 	t.Helper()
-	rec := get(workbench.Handler(&stubHandler{}, stubSignals{summaries: summaries}, discard), "/")
+	rec := get(workbench.Handler(startInspected(t).Handler(), stubSignals{summaries: summaries}, discard), "/")
 	require.Equal(t, http.StatusOK, rec.Code)
 	return rec.Body.String()
 }
@@ -102,7 +104,7 @@ func withLatest(name string, count int64, sig source.Signal) source.TargetSummar
 }
 
 func TestHandlerServesWorkbenchPanel(t *testing.T) {
-	rec := get(workbench.Handler(&stubHandler{}, stubSignals{}, discard), "/")
+	rec := get(workbench.Handler(startInspected(t).Handler(), stubSignals{}, discard), "/")
 
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.Contains(t, rec.Header().Get("Content-Type"), "text/html")
@@ -165,7 +167,7 @@ func TestPageRefreshes(t *testing.T) {
 
 func TestPageShowsSummaryError(t *testing.T) {
 	var buf bytes.Buffer
-	h := workbench.Handler(&stubHandler{}, stubSignals{err: errors.New("boom")}, slog.New(slog.NewTextHandler(&buf, nil)))
+	h := workbench.Handler(startInspected(t).Handler(), stubSignals{err: errors.New("boom")}, slog.New(slog.NewTextHandler(&buf, nil)))
 
 	rec := get(h, "/")
 
@@ -201,6 +203,90 @@ func TestPageShowsCollectedSignals(t *testing.T) {
 	require.Regexp(t, `<tr class="target ok">.*>live</a></td><td class="num">1</td>.*>200</td>`, rec.Body.String())
 	require.Regexp(t, `<tr class="target ok">.*>ready</a></td><td class="num">1</td>.*>200</td>`, rec.Body.String())
 	require.Contains(t, rec.Body.String(), `<span class="key">&#34;status&#34;</span>`)
+}
+
+func postMode(h http.Handler, dependency, mode string) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(http.MethodPost, "/controls/dependencies/"+dependency, strings.NewReader(url.Values{"mode": {mode}}.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	return rec
+}
+
+// controls returns the form of dependency in body.
+func controls(t *testing.T, body, dependency string) string {
+	t.Helper()
+	form := `<form method="post" action="/controls/dependencies/` + dependency + `">`
+	start := strings.Index(body, form)
+	require.GreaterOrEqual(t, start, 0, "no form for %q", dependency)
+	return body[start : start+strings.Index(body[start:], "</form>")]
+}
+
+func TestPageHasDependencyControls(t *testing.T) {
+	body := page(t)
+
+	for _, dep := range []string{"payment-gateway", "warehouse"} {
+		form := controls(t, body, dep)
+		for _, mode := range []string{"healthy", "slow", "outage"} {
+			require.Contains(t, form, `<button name="mode" value="`+mode+`"`)
+		}
+	}
+}
+
+func TestPageMarksActiveMode(t *testing.T) {
+	h := workbench.Handler(startInspected(t).Handler(), stubSignals{}, discard)
+	require.Equal(t, http.StatusSeeOther, postMode(h, "payment-gateway", "outage").Code)
+
+	rec := get(h, "/")
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	payment := controls(t, rec.Body.String(), "payment-gateway")
+	require.Contains(t, payment, `value="outage" class="mode-outage active" aria-pressed="true"`)
+	require.Contains(t, payment, `value="healthy" class="mode-healthy" aria-pressed="false"`)
+	require.Equal(t, 1, strings.Count(payment, `aria-pressed="true"`))
+	warehouse := controls(t, rec.Body.String(), "warehouse")
+	require.Contains(t, warehouse, `value="healthy" class="mode-healthy active" aria-pressed="true"`)
+	require.Equal(t, 1, strings.Count(warehouse, `aria-pressed="true"`))
+}
+
+func TestPageShowsControlsError(t *testing.T) {
+	var buf bytes.Buffer
+	unavailable := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "simulation stopped", http.StatusServiceUnavailable)
+	})
+	h := workbench.Handler(unavailable, stubSignals{}, slog.New(slog.NewTextHandler(&buf, nil)))
+
+	rec := get(h, "/")
+
+	require.Equal(t, http.StatusInternalServerError, rec.Code)
+	require.Contains(t, rec.Body.String(), "dependency modes unavailable")
+	require.Contains(t, rec.Body.String(), "simulation stopped")
+	require.Contains(t, rec.Body.String(), `class="view-raw"`)
+	require.Contains(t, buf.String(), `msg="workbench: read dependency modes"`)
+}
+
+func TestDependencyControlSetsMode(t *testing.T) {
+	app := startInspected(t)
+	h := workbench.Handler(app.Handler(), stubSignals{}, discard)
+
+	rec := postMode(h, "payment-gateway", "outage")
+
+	require.Equal(t, http.StatusSeeOther, rec.Code)
+	require.Equal(t, "/", rec.Header().Get("Location"))
+	dep := get(h, inspected.PathPrefix+"/api/dependencies/payment-gateway")
+	require.Equal(t, http.StatusOK, dep.Code)
+	require.Contains(t, dep.Body.String(), `"mode":"outage"`)
+}
+
+func TestDependencyControlShowsInspectedError(t *testing.T) {
+	app := startInspected(t)
+	h := workbench.Handler(app.Handler(), stubSignals{}, discard)
+
+	rec := postMode(h, "payment-gateway", "bogus")
+
+	require.Equal(t, http.StatusUnprocessableEntity, rec.Code)
+	require.Contains(t, rec.Body.String(), "set payment-gateway to bogus")
+	require.Contains(t, rec.Body.String(), "invalid_dependency_mode")
 }
 
 func TestRunRejectsInvalidConfig(t *testing.T) {

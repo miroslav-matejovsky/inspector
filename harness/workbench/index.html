@@ -40,10 +40,17 @@
     border: 1px solid var(--border);
     border-radius: 6px;
   }
-  .panel h2 {
-    margin: 0;
+  .panel header {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    align-items: center;
     padding: 8px 12px;
     border-bottom: 1px solid var(--border);
+  }
+  .panel h2 {
+    flex: 1;
+    margin: 0;
     font-size: 13px;
     font-weight: 600;
     letter-spacing: 0.04em;
@@ -51,13 +58,48 @@
     color: var(--muted);
   }
   .panel .content { flex: 1; padding: 12px; overflow: auto; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0; }
+  .controls form { display: flex; gap: 4px; align-items: center; margin: 0; }
+  .controls .dependency { margin-right: 2px; font-size: 12px; color: var(--muted); }
+  .controls button {
+    padding: 2px 8px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg);
+    color: var(--text);
+    font: 12px system-ui, sans-serif;
+    cursor: pointer;
+  }
+  .controls button.mode-healthy { --mode: #1a7f37; }
+  .controls button.mode-slow { --mode: #9a6700; }
+  .controls button.mode-outage { --mode: #cf222e; }
+  .controls button:hover { border-color: var(--mode); }
+  .controls button.active {
+    border-color: var(--mode);
+    background: var(--mode);
+    color: #ffffff;
+    font-weight: 600;
+    cursor: default;
+  }
   .error { margin: 0; font: 12px/1.4 ui-monospace, monospace; color: #cf222e; }
 </style>
 <style>{{.Styles}}</style>
 </head>
 <body>
   <section class="panel" id="workbench">
-    <h2>Workbench</h2>
+    <header>
+      <h2>Workbench</h2>
+      <div class="controls">
+        {{- if .ControlsError}}
+        <span class="error">{{.ControlsError}}</span>
+        {{- end}}
+        {{- range .Controls}}
+        <form method="post" action="/controls/dependencies/{{.Name}}"><span class="dependency">{{.Name}}</span>
+          {{- range .Buttons}}<button name="mode" value="{{.Mode}}" class="mode-{{.Mode}}{{if .Active}} active{{end}}" aria-pressed="{{.Active}}">{{.Mode}}</button>{{end -}}
+        </form>
+        {{- end}}
+      </div>
+    </header>
     <div class="content" id="signals">{{if .Error}}<pre class="error">{{.Error}}</pre>{{else}}{{.View}}{{end}}</div>
   </section>
 </body>

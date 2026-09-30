@@ -56,7 +56,7 @@ deps:
   view:
     mayDependOn: [source]
   workbench:
-    mayDependOn: [inspected, source, view]
+    mayDependOn: [inspected, inspected-fulfillment, source, view]
   inspected:
     mayDependOn: [inspected-fulfillment, inspected-simulation, inspected-metrics, inspected-health]
     canUse: [prometheus]
