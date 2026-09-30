@@ -23,25 +23,16 @@ excludeFiles:
 vendors:
   prometheus: { in: "github.com/prometheus/**" }
 
-# Inspector library components (observation, navigation, connectivity,
-# representation, and later explanation) list only other library components
-# in mayDependOn, never a harness component: the library knows no inspected
-# system. Every Go package must be mapped to a component; go-arch-lint fails
-# on files that are not attached to one. Vocabulary is checked by task boundary.
+# Every Go package must be mapped to a component; go-arch-lint fails on files
+# that are not attached to one.
 components:
   cmd: { in: cmd/** }
-  observation: { in: observation }
-  navigation: { in: navigation }
-  connectivity: { in: connectivity }
-  representation: { in: representation }
-  explanation: { in: explanation }
   workbench: { in: harness/workbench }
-  adapter: { in: harness/adapter }
-  fulfillment: { in: harness/inspected/fulfillment }
-  simulation: { in: harness/inspected/simulation }
-  metrics: { in: harness/inspected/metrics }
-  health: { in: harness/inspected/health }
   inspected: { in: harness/inspected }
+  inspected-fulfillment: { in: harness/inspected/fulfillment }
+  inspected-simulation: { in: harness/inspected/simulation }
+  inspected-metrics: { in: harness/inspected/metrics }
+  inspected-health: { in: harness/inspected/health }
   # Example for a real project, one entry per domain package:
   #
   # orders:   { in: internal/orders }
@@ -53,26 +44,18 @@ deps:
   cmd:
     anyProjectDeps: true
     anyVendorDeps: true
-  navigation:
-    mayDependOn: [observation]
-  explanation:
-    mayDependOn: [observation]
-  representation:
-    mayDependOn: [observation, navigation, explanation]
   workbench:
-    mayDependOn: [inspected, adapter, connectivity, representation]
-  adapter:
-    mayDependOn: [observation, connectivity]
-  simulation:
-    mayDependOn: [fulfillment]
-  metrics:
-    mayDependOn: [fulfillment]
-    canUse: [prometheus]
-  health:
-    mayDependOn: [fulfillment]
+    mayDependOn: [inspected]
   inspected:
-    mayDependOn: [fulfillment, simulation, metrics, health]
+    mayDependOn: [inspected-fulfillment, inspected-simulation, inspected-metrics, inspected-health]
     canUse: [prometheus]
+  inspected-simulation:
+    mayDependOn: [inspected-fulfillment]
+  inspected-metrics:
+    mayDependOn: [inspected-fulfillment]
+    canUse: [prometheus]
+  inspected-health:
+    mayDependOn: [inspected-fulfillment]
   # Example for a real project, each component lists what it may import:
   #
   # orders:

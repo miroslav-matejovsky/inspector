@@ -20,7 +20,6 @@ func allFlags() [][2]string {
 		{"inspected-orders-per-tick", "1"},
 		{"inspected-tick-interval", "1s"},
 		{"inspected-request-timeout", "2s"},
-		{"inspector-source-timeout", "2s"},
 	}
 }
 
@@ -50,7 +49,6 @@ func TestParseConfig(t *testing.T) {
 		Inspected: inspected.Config{
 			Seed: 42, OrdersPerTick: 1, TickInterval: time.Second, RequestTimeout: 2 * time.Second,
 		},
-		InspectorSourceTimeout: 2 * time.Second,
 	}, got)
 }
 
@@ -58,7 +56,7 @@ func TestParseConfigWithoutFlags(t *testing.T) {
 	_, err := workbench.ParseConfig(nil, io.Discard)
 
 	require.ErrorContains(t, err, "missing required flags: -addr, -inspected-orders-per-tick, "+
-		"-inspected-request-timeout, -inspected-seed, -inspected-tick-interval, -inspector-source-timeout")
+		"-inspected-request-timeout, -inspected-seed, -inspected-tick-interval")
 }
 
 func TestParseConfigRequiresEveryFlag(t *testing.T) {
@@ -83,20 +81,17 @@ func TestParseConfigAcceptsZeroSeedAndTraffic(t *testing.T) {
 
 func TestParseConfigRejectsInvalidValues(t *testing.T) {
 	tests := map[string]map[string]string{
-		"empty addr":                {"addr": ""},
-		"zero tick interval":        {"inspected-tick-interval": "0s"},
-		"zero request timeout":      {"inspected-request-timeout": "0s"},
-		"too many orders":           {"inspected-orders-per-tick": "101"},
-		"negative seed":             {"inspected-seed": "-1"},
-		"unparsable interval":       {"inspected-tick-interval": "abc"},
-		"negative orders":           {"inspected-orders-per-tick": "-1"},
-		"unparsable seed":           {"inspected-seed": "x"},
-		"unparsable timeout":        {"inspected-request-timeout": "x"},
-		"unparsable orders":         {"inspected-orders-per-tick": "x"},
-		"negative tick interval":    {"inspected-tick-interval": "-1s"},
-		"zero source timeout":       {"inspector-source-timeout": "0s"},
-		"negative source timeout":   {"inspector-source-timeout": "-1s"},
-		"unparsable source timeout": {"inspector-source-timeout": "x"},
+		"empty addr":             {"addr": ""},
+		"zero tick interval":     {"inspected-tick-interval": "0s"},
+		"zero request timeout":   {"inspected-request-timeout": "0s"},
+		"too many orders":        {"inspected-orders-per-tick": "101"},
+		"negative seed":          {"inspected-seed": "-1"},
+		"unparsable interval":    {"inspected-tick-interval": "abc"},
+		"negative orders":        {"inspected-orders-per-tick": "-1"},
+		"unparsable seed":        {"inspected-seed": "x"},
+		"unparsable timeout":     {"inspected-request-timeout": "x"},
+		"unparsable orders":      {"inspected-orders-per-tick": "x"},
+		"negative tick interval": {"inspected-tick-interval": "-1s"},
 	}
 	for name, override := range tests {
 		t.Run(name, func(t *testing.T) {

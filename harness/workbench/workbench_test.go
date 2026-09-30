@@ -2,7 +2,6 @@ package workbench_test
 
 import (
 	"context"
-	"encoding/json"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -35,7 +34,6 @@ func validConfig() workbench.Config {
 		Inspected: inspected.Config{
 			Seed: 1, OrdersPerTick: 1, TickInterval: time.Hour, RequestTimeout: time.Second,
 		},
-		InspectorSourceTimeout: time.Second,
 	}
 }
 
@@ -56,7 +54,7 @@ func startInspected(t *testing.T) *inspected.App {
 }
 
 func TestHandlerServesTwoPanels(t *testing.T) {
-	rec := get(workbench.Handler(&stubHandler{}, &stubHandler{}), "/")
+	rec := get(workbench.Handler(&stubHandler{}), "/")
 
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.Contains(t, rec.Header().Get("Content-Type"), "text/html")
@@ -65,69 +63,30 @@ func TestHandlerServesTwoPanels(t *testing.T) {
 }
 
 func TestHandlerMountsInspected(t *testing.T) {
-	inspectedStub, inspectorStub := &stubHandler{}, &stubHandler{}
+	inspectedStub := &stubHandler{}
 
-	rec := get(workbench.Handler(inspectedStub, inspectorStub), inspected.PathPrefix+"/api/products")
+	rec := get(workbench.Handler(inspectedStub), inspected.PathPrefix+"/api/products")
 
 	require.Equal(t, http.StatusNoContent, rec.Code)
 	require.Equal(t, []string{inspected.PathPrefix + "/api/products"}, inspectedStub.paths)
-	require.Empty(t, inspectorStub.paths)
-}
-
-func TestHandlerMountsInspector(t *testing.T) {
-	inspectedStub, inspectorStub := &stubHandler{}, &stubHandler{}
-
-	rec := get(workbench.Handler(inspectedStub, inspectorStub), workbench.InspectorPathPrefix+"/entities")
-
-	require.Equal(t, http.StatusNoContent, rec.Code)
-	require.Equal(t, []string{workbench.InspectorPathPrefix + "/entities"}, inspectorStub.paths)
-	require.Empty(t, inspectedStub.paths)
 }
 
 func TestHandlerUnknownPathIsNotFound(t *testing.T) {
-	inspectedStub, inspectorStub := &stubHandler{}, &stubHandler{}
+	inspectedStub := &stubHandler{}
 
-	rec := get(workbench.Handler(inspectedStub, inspectorStub), "/missing")
+	rec := get(workbench.Handler(inspectedStub), "/missing")
 
 	require.Equal(t, http.StatusNotFound, rec.Code)
 	require.Empty(t, inspectedStub.paths)
-	require.Empty(t, inspectorStub.paths)
 }
 
 func TestWorkbenchServesInspected(t *testing.T) {
 	app := startInspected(t)
 
-	rec := get(workbench.Handler(app.Handler(), &stubHandler{}), inspected.PathPrefix+"/health/live")
+	rec := get(workbench.Handler(app.Handler()), inspected.PathPrefix+"/health/live")
 
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.JSONEq(t, `{"status":"up"}`, rec.Body.String())
-}
-
-func TestInspectorHandlerObservesInspected(t *testing.T) {
-	app := startInspected(t)
-	srv := httptest.NewServer(app.Handler())
-	t.Cleanup(srv.Close)
-	h, err := workbench.InspectorHandler(srv.URL+inspected.PathPrefix, time.Second)
-	require.NoError(t, err)
-
-	rec := get(workbench.Handler(app.Handler(), h), workbench.InspectorPathPrefix+"/")
-
-	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	type kind struct {
-		Kind  string
-		Count int
-	}
-	var overview struct{ Kinds []kind }
-	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &overview))
-	require.Equal(t, []kind{{"service", 1}, {"health_check", 3}, {"dependency", 2}, {"product", 5}}, overview.Kinds)
-}
-
-func TestInspectorHandlerRejectsInvalidConfig(t *testing.T) {
-	_, err := workbench.InspectorHandler("", time.Second)
-	require.Error(t, err)
-
-	_, err = workbench.InspectorHandler("http://127.0.0.1:1/inspected", 0)
-	require.Error(t, err)
 }
 
 func TestRunRejectsInvalidConfig(t *testing.T) {

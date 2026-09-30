@@ -15,16 +15,6 @@ The entry point is `cmd/workbench`. Start it with `task workbench` and open http
 | `-inspected-orders-per-tick` | Simulated orders placed per tick, 0 to 100. |
 | `-inspected-tick-interval` | Wall-clock time between simulation ticks, for example `1s`. |
 | `-inspected-request-timeout` | Max wait for the simulation per HTTP request, for example `2s`. |
-| `-inspector-source-timeout` | Max wait for one read of the inspected service by the inspector, for example `2s`. |
-
-The workbench also mounts the Inspector views of the simulation under `/inspector/`. They are built from the library packages `connectivity`, `representation` and the harness package `adapter`, and read the inspected service over HTTP through the workbench listener.
-
-| Method | Path | Purpose |
-| --- | --- | --- |
-| GET | `/inspector/` | Overview: observation time, entity kinds with counts |
-| GET | `/inspector/entities` | Entities, optional filter `kind` |
-| GET | `/inspector/entities/{kind}/{id}` | One entity with attributes and related entities |
-| GET | `/inspector/entities/{kind}/{id}/explanation` | Why the entity is in its state: cause tree and root causes |
 
 ## inspected
 
@@ -112,33 +102,3 @@ curl $B/health/ready                            # up
 ```
 
 Resume the clock with `curl -X PUT -d '{"running":true}' $B/sim/clock`.
-
-## adapter
-
-`adapter/` maps the inspected simulation into the Inspector observation model. It is the only package that knows both the inspected JSON contract and the library model; all simulated vocabulary Inspector shows is defined here. It reads the inspected service like an external client: GET requests to `/inspected/health/ready`, `/inspected/api/dependencies`, `/inspected/api/products` and `/inspected/api/orders` through `connectivity.HTTPReader`. It never reads `/inspected/sim` and does not import package `inspected`.
-
-Entities:
-
-| Source | Kind | ID | State | Reason | History | Attributes |
-| --- | --- | --- | --- | --- | --- | --- |
-| readiness | `service` | `inspected` | readiness `status` | none | none | none |
-| each check | `health_check` | `name` | `status` | check `reason` | none | none |
-| each dependency | `dependency` | `name` | `mode` | none | none | none |
-| each product | `product` | `sku` | empty | none | none | `name`, `price_cents`, `stock`, `capacity`, `reorder_point` |
-| each order | `order` | `id` | `status` | reason of the last history entry | source `history`, `at` written as `tick <n>` | `quantity`, `total_cents`, `channel`, `placed_at_tick`, `updated_at_tick` |
-
-Relations:
-
-| From | Kind | To | Cause |
-| --- | --- | --- | --- |
-| `service/inspected` | `has_check` | `health_check/<name>`, one per check | when the check status equals the service status |
-| `health_check/<name>` | `caused_by` | each link in the check `causes` | yes |
-| `order/<id>` | `for_product` | `product/<sku>`, one per order | no |
-| `order/<id>` | `caused_by` | the `cause` link of the last history entry | yes |
-| `order/<id>` | `waits_on` | the `links.waiting_on` of an open order | yes |
-
-The service status is the worst check status, so the checks with that status are the ones that decide it. A link ending in `/api/dependencies/<name>` targets `dependency/<name>`, one ending in `/api/products/<sku>` targets `product/<sku>`; any other link becomes a gap.
-
-The four reads are not atomic; they can come from different ticks.
-
-Failed reads and malformed items become gaps of the snapshot and are shown in every inspector view, for example `unexpected status 503: simulation_unavailable` for `/api/products`. The other reads are still shown. Only when no read succeeds do the views answer 503.
