@@ -4,7 +4,7 @@ Development tooling for running Inspector against something to inspect.
 
 ## workbench
 
-`workbench/` is a Go package that serves a web page with two panels: **inspected** and **inspector**. Both panels are empty for now. It also mounts the inspected simulation under `/inspected/` on the same server.
+`workbench/` is a Go package that serves a web page with one **workbench** panel, empty for now. It also mounts the inspected simulation under `/inspected/` on the same server.
 
 The entry point is `cmd/workbench`. Start it with `task workbench` and open http://localhost:8080. Every setting is a required flag without a default:
 

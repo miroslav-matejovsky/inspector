@@ -1,12 +1,7 @@
 // Package workbench is the development harness for Inspector.
 //
-// It serves a single web page with two panels:
-//
-//   - inspected: the system under inspection.
-//   - inspector: the Inspector view of that system.
-//
-// Both panels are empty placeholders for now. The page is embedded in the
-// binary and served at "/".
+// It serves a single web page with one workbench panel, an empty placeholder
+// for now. The page is embedded in the binary and served at "/".
 //
 // # Inspected simulation
 //

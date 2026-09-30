@@ -24,15 +24,14 @@
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
   body {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
+    display: flex;
     padding: 12px;
     background: var(--bg);
     color: var(--text);
     font: 14px/1.4 system-ui, sans-serif;
   }
   .panel {
+    flex: 1;
     display: flex;
     flex-direction: column;
     min-width: 0;
@@ -51,18 +50,11 @@
     color: var(--muted);
   }
   .panel .content { flex: 1; padding: 12px; overflow: auto; }
-  @media (max-width: 700px) {
-    body { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
-  }
 </style>
 </head>
 <body>
-  <section class="panel" id="inspected">
-    <h2>Inspected</h2>
-    <div class="content"></div>
-  </section>
-  <section class="panel" id="inspector">
-    <h2>Inspector</h2>
+  <section class="panel" id="workbench">
+    <h2>Workbench</h2>
     <div class="content"></div>
   </section>
 </body>

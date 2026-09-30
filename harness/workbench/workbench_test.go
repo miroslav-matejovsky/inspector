@@ -53,13 +53,12 @@ func startInspected(t *testing.T) *inspected.App {
 	return app
 }
 
-func TestHandlerServesTwoPanels(t *testing.T) {
+func TestHandlerServesWorkbenchPanel(t *testing.T) {
 	rec := get(workbench.Handler(&stubHandler{}), "/")
 
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.Contains(t, rec.Header().Get("Content-Type"), "text/html")
-	require.Contains(t, rec.Body.String(), `id="inspected"`)
-	require.Contains(t, rec.Body.String(), `id="inspector"`)
+	require.Contains(t, rec.Body.String(), `id="workbench"`)
 }
 
 func TestHandlerMountsInspected(t *testing.T) {
