@@ -49,3 +49,4 @@ A plan is complete only when all implementation tasks are finished, all tests pa
 
 | Name | Description |
 |------|-------------|
+| [model](model/README.md) | Package `model` (Navigate), the inspected model of the workbench, the `view` split into `view/raw`, `view/explorer`, `view/chart` and `view/dashboard`, and workbench pages Dashboard, Model and Raw. |
