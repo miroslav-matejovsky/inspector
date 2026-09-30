@@ -5,15 +5,3 @@ Do not use this file for tracking progress or track finished work. If work is fi
 Keep this file short; active implementation plans live in `dev/plans/`,
 the structured backlog of lower-priority follow-ups lives in `dev/backlog/` (start at `dev/backlog/README.md`),
 and the architecture overview lives in `README.md`.
-
-## Model pages
-
-- [ ] `task workbench`, open http://localhost:8080: the Dashboard tab is active and the chart has bars for service, readiness, check, dependency, product and order.
-- [ ] Click `outage` for payment-gateway on the Dashboard: within 10 s, Attention lists the dependency and the check payment-gateway as down with their reasons; the page stays on the Dashboard.
-- [ ] Model tab: kinds listed; the first order rows are the newest orders.
-- [ ] Open the payment-gateway dependency page: backlinks list the check (determined by) and pending orders (waits on); following a link opens that entity; browser Back returns.
-- [ ] On an entity page, click a control: the page stays on the same entity page and the button is filled.
-- [ ] Stay on an entity page for 10 s: the panel refreshes in place, the URL keeps `?entity=`, and the scroll position stays.
-- [ ] Open `/model?entity=/nope`: the page shows "entity "/nope" is not in the model".
-- [ ] Health badges, chart bars and tabs are readable in light and dark mode.
-- [ ] With `-inspected-orders-per-tick 10` for 2 minutes (more than 1000 orders), the Model page shows 100 order rows with "more not shown" and refreshes without visible lag.
