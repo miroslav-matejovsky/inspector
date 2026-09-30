@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="refresh" content="{{.RefreshSeconds}}">
 <title>Inspector Workbench</title>
 <style>
   :root {
@@ -50,12 +51,13 @@
     color: var(--muted);
   }
   .panel .content { flex: 1; padding: 12px; overflow: auto; }
+  pre { margin: 0; font: 12px/1.4 ui-monospace, monospace; }
 </style>
 </head>
 <body>
   <section class="panel" id="workbench">
     <h2>Workbench</h2>
-    <div class="content"></div>
+    <div class="content"><pre id="signals">{{.Signals}}</pre></div>
   </section>
 </body>
 </html>

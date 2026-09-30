@@ -82,10 +82,31 @@ tasks:
 # ---- running stuff ----
 
   workbench:
-    desc: Run the development workbench with the inspected simulation on localhost:8080
+    desc: Run the development workbench with the inspected simulation and its source on localhost:8080, logging to logs/
     silent: true
     cmds:
-      - go run ./cmd/workbench -addr localhost:8080 -inspected-seed 42 -inspected-orders-per-tick 1 -inspected-tick-interval 1s -inspected-request-timeout 2s
+      # >- folds the lines into one command line separated by spaces.
+      - >-
+        go run ./cmd/workbench
+        -addr localhost:8080
+        -log-dir logs
+        -log-level info
+        -inspected-seed 42
+        -inspected-orders-per-tick 1
+        -inspected-tick-interval 1s
+        -inspected-request-timeout 2s
+        -source-database data/source.db
+        -source-interval 5s
+        -source-timeout 2s
+        -source-retention 10m
+        -source-max-body-bytes 2097152
+        -source-target index=/inspected/
+        -source-target health_live=/inspected/health/live
+        -source-target health_ready=/inspected/health/ready
+        -source-target metrics=/inspected/metrics
+        -source-target dependencies=/inspected/api/dependencies
+        -source-target products=/inspected/api/products
+        -source-target orders=/inspected/api/orders
 
 # ---- release ----
 

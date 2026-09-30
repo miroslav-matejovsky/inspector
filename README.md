@@ -2,6 +2,16 @@
 
 Inspector is a Go library for inspecting running systems. Its principles are in [dev/principles.md](dev/principles.md).
 
+## Library
+
+The toolkit follows the Alignment principle: Observe -> Source, Navigate -> Model, Explain -> View. Top-level packages are the public toolkit; `internal/` holds their implementation details. Toolkit packages never import `harness/...`; `go-arch-lint` enforces it.
+
+| Package | Responsibility | May depend on |
+| --- | --- | --- |
+| `source` | Observe: collects signals from HTTP targets on an interval and stores them. | `internal/signalstore` |
+| `internal/signalstore` | SQLite storage of collected signals. | stdlib, `github.com/ncruces/go-sqlite3` |
+| `internal/logfile` | One log file per run, `log/slog` text format. | stdlib |
+
 ## Harness
 
-`harness/` holds the development workbench: a web page with a single workbench panel, plus a simulated order fulfillment service that exposes a JSON API, health checks and Prometheus metrics for Inspector to work against. Start it with `task workbench`. See [harness/README.md](harness/README.md).
+`harness/` holds the development workbench: a web page with a single workbench panel, a simulated order fulfillment service that exposes a JSON API, health checks and Prometheus metrics for Inspector to work against. The workbench runs a `source.Source` against the simulation and shows the collected signals as text. Start it with `task workbench`. Each run writes its log to `logs/`. See [harness/README.md](harness/README.md).

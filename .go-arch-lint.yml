@@ -22,11 +22,15 @@ excludeFiles:
 #   ergo:   { in: "ergo.services/ergo/**" }
 vendors:
   prometheus: { in: "github.com/prometheus/**" }
+  sqlite: { in: "github.com/ncruces/go-sqlite3/**" }
 
 # Every Go package must be mapped to a component; go-arch-lint fails on files
 # that are not attached to one.
 components:
   cmd: { in: cmd/** }
+  source: { in: source }
+  signalstore: { in: internal/signalstore }
+  logfile: { in: internal/logfile }
   workbench: { in: harness/workbench }
   inspected: { in: harness/inspected }
   inspected-fulfillment: { in: harness/inspected/fulfillment }
@@ -44,8 +48,12 @@ deps:
   cmd:
     anyProjectDeps: true
     anyVendorDeps: true
+  source:
+    mayDependOn: [signalstore]
+  signalstore:
+    canUse: [sqlite]
   workbench:
-    mayDependOn: [inspected]
+    mayDependOn: [inspected, source]
   inspected:
     mayDependOn: [inspected-fulfillment, inspected-simulation, inspected-metrics, inspected-health]
     canUse: [prometheus]
