@@ -59,92 +59,6 @@
 - No defaults in configuration files are allowed.
 - All configuration must be explicit and documented in the configuration files.
 - Backward compatibility and versioning are overrated. Favor progress and clean code over maintaining old behavior.
-- Model business capabilities as autonomous actors with clear ownership boundaries.
-
-## Actor Model
-
-- One owner per state.
-- Assign Actor and Process proper name and identity.
-- Actor state must never be accessed directly by another actor.
-- Interact only through messages.
-- Avoid shared mutable state.
-- Avoid mutexes when actor ownership can solve the problem.
-- Prefer message passing over synchronous coupling.
-- Actor behavior must be deterministic for a given message sequence.
-- Keep actor state focused and minimal.
-- Design actors around responsibilities, not data structures.
-- Every actor must have a clear lifecycle.
-- Every actor must have a well-defined failure boundary.
-- Actor names and message types must reflect business intent.
-- State ownership is more important than code reuse.
-- Actor boundaries should align with domain boundaries.
-
-### Message Design
-
-- Define messages as explicit domain concepts.
-- Prefer immutable message payloads.
-- Message names must describe intent, not implementation.
-- Version messages by introducing new message types.
-- Avoid generic `map[string]any` payloads.
-- Validate messages at actor boundaries.
-- Keep messages small.
-- Never send unnecessary state.
-- Document message contracts and invariants.
-- Prefer explicit message types over ad hoc protocols.
-
-### State Ownership
-
-- Every piece of mutable state must have exactly one owner.
-- Shared ownership is a design smell.
-- Queries must not bypass actor boundaries.
-- State transitions occur only within the owning actor.
-- External consumers observe state through messages.
-- Avoid global mutable state.
-- Derive state from events when practical.
-- Make ownership obvious from the code structure.
-
-### Failure and Supervision
-
-- Fail fast.
-- Let failed actors fail.
-- Recover through supervision, not defensive code.
-- Do not hide crashes behind retries.
-- Do not ignore mailbox or process failures.
-- Supervisors own restart strategies.
-- Child actors must not manage parent failures.
-- Escalate unexpected failures.
-- Design restart behavior explicitly.
-- Document restart assumptions and side effects.
-- Treat restarts as normal system behavior.
-- Assume every actor will eventually fail.
-
-### Concurrency
-
-- Prefer actors over goroutine orchestration.
-- Prefer actors over mutex-heavy designs.
-- Do not introduce concurrency without a clear need.
-- Every goroutine must have an owner.
-- Every goroutine must have a termination path.
-- Avoid fan-out patterns without backpressure.
-- Avoid blocking actor message handlers.
-- Long-running work belongs in dedicated workers.
-- Protect mailbox health.
-- Measure queue growth before optimizing throughput.
-
-### Distributed Systems
-
-- Assume network boundaries exist.
-- Assume messages may arrive late.
-- Assume messages may arrive out of order unless guarantees exist.
-- Assume messages may arrive more than once.
-- Assume remote actors may disappear.
-- Design operations to be idempotent where practical.
-- Do not depend on actor location.
-- Local and remote interactions must follow the same contract.
-- Document consistency guarantees.
-- Prefer eventual consistency over distributed locking.
-- Avoid cross-node synchronous dependencies when possible.
-- Network transparency must not hide network reality.
 
 ## Error Handling
 
@@ -168,20 +82,6 @@
 - NEVER start and verify on real running systems, not even on local or developer environments
 - Verification on real running systems should be documented in the '.todo' file at the repository root.
 
-### Actor Testing
-
-- Use `ergo.services/ergo/testing/unit` for unit actors testing.
-- Use `ergo.services/ergo/testing/stage` for end-to-end  actors testing.
-- Test observable message behavior.
-- Test actor state transitions.
-- Test restart scenarios.
-- Test supervision behavior.
-- Test mailbox overload scenarios.
-- Test timeouts explicitly.
-- Test failure handling paths.
-- Do not test internal actor implementation details.
-- Verify behavior before and after actor restart.
-
 ## Go Specific
 
 ### Tooling
@@ -202,10 +102,7 @@
 - Use contexts correctly.
 - Do not store contexts in structs.
 - Pass contexts explicitly.
-- Prefer actors over shared-memory concurrency.
-- Avoid mutexes unless actor ownership is impossible or impractical.
 - Channels are transport mechanisms, not architecture.
-- Model long-lived behaviour as actors.
 - Prefer explicit dependencies over service locators.
 - Keep package APIs small and intentional.
 
@@ -218,7 +115,7 @@
 
 - Prefer table-driven tests when helpful.
 - Use `require` from `testify` for assertions.
-- Prefer deterministic actor tests over timing-based tests.
+- Prefer deterministic tests over timing-based tests.
 - Verify observable contracts, not internal implementation choices.
 
 ## Output

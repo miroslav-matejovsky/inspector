@@ -81,11 +81,11 @@ tasks:
 
 # ---- running stuff ----
 
-  run:
-    desc: Run the application (for development)
+  workbench:
+    desc: Run the development workbench with the inspected simulation on localhost:8080
     silent: true
     cmds:
-      - go run ./cmd/...
+      - go run ./cmd/workbench -addr localhost:8080 -inspected-seed 42 -inspected-orders-per-tick 1 -inspected-tick-interval 1s -inspected-request-timeout 2s
 
 # ---- release ----
 

@@ -49,4 +49,3 @@ A plan is complete only when all implementation tasks are finished, all tests pa
 
 | Name | Description |
 |------|-------------|
-| Example Plan | Demonstrates the structure and content of a typical implementation plan |

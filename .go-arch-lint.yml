@@ -20,9 +20,19 @@ excludeFiles:
 # vendors:
 #   x-sync: { in: "golang.org/x/sync/**" }
 #   ergo:   { in: "ergo.services/ergo/**" }
+vendors:
+  prometheus: { in: "github.com/prometheus/**" }
 
+# Every Go package must be mapped to a component; go-arch-lint fails on files
+# that are not attached to one.
 components:
-  cmd: { in: cmd }
+  cmd: { in: cmd/** }
+  workbench: { in: harness/workbench }
+  inspected: { in: harness/inspected }
+  inspected-fulfillment: { in: harness/inspected/fulfillment }
+  inspected-simulation: { in: harness/inspected/simulation }
+  inspected-metrics: { in: harness/inspected/metrics }
+  inspected-health: { in: harness/inspected/health }
   # Example for a real project, one entry per domain package:
   #
   # orders:   { in: internal/orders }
@@ -34,6 +44,18 @@ deps:
   cmd:
     anyProjectDeps: true
     anyVendorDeps: true
+  workbench:
+    mayDependOn: [inspected]
+  inspected:
+    mayDependOn: [inspected-fulfillment, inspected-simulation, inspected-metrics, inspected-health]
+    canUse: [prometheus]
+  inspected-simulation:
+    mayDependOn: [inspected-fulfillment]
+  inspected-metrics:
+    mayDependOn: [inspected-fulfillment]
+    canUse: [prometheus]
+  inspected-health:
+    mayDependOn: [inspected-fulfillment]
   # Example for a real project, each component lists what it may import:
   #
   # orders:
