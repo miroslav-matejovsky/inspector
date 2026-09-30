@@ -1,0 +1,16 @@
+{{define "dashboard" -}}
+<div class="view view-dashboard">
+<section class="chart"><h3>Health</h3>{{.Chart}}</section>
+<section class="attention"><h3>Attention <span class="count">{{.AttentionCount}}</span></h3>
+{{if .Attention}}<table class="attention">
+<thead><tr><th>Health</th><th>Kind</th><th>Name</th><th>State</th><th>Reason</th></tr></thead>
+<tbody>
+{{range .Attention}}<tr class="health-{{.Health}}"><td><span class="badge">{{.Health}}</span></td><td>{{.Kind}}</td><td><a href="{{.Href}}">{{.Name}}</a></td><td>{{.Value}}</td><td>{{.Reason}}</td></tr>
+{{end}}</tbody></table>{{if .Hidden}}<p class="note">{{.Hidden}} more not shown</p>{{end}}
+{{else}}<p class="note">no entity is degraded or down</p>{{end}}
+</section>
+{{if .Issues}}<section class="issues"><h3>Issues <span class="count">{{len .Issues}}</span></h3>
+<ul>{{range .Issues}}<li><span class="target">{{.Target}}</span> <span class="error">{{.Error}}</span></li>{{end}}</ul>
+</section>{{end}}
+</div>
+{{- end}}

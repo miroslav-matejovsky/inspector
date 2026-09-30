@@ -29,9 +29,14 @@ vendors:
 components:
   cmd: { in: cmd/** }
   source: { in: source }
+  model: { in: model }
   signalstore: { in: internal/signalstore }
   logfile: { in: internal/logfile }
   view: { in: view }
+  view-raw: { in: view/raw }
+  view-explorer: { in: view/explorer }
+  view-chart: { in: view/chart }
+  view-dashboard: { in: view/dashboard }
   workbench: { in: harness/workbench }
   inspected: { in: harness/inspected }
   inspected-fulfillment: { in: harness/inspected/fulfillment }
@@ -51,12 +56,20 @@ deps:
     anyVendorDeps: true
   source:
     mayDependOn: [signalstore]
+  model:
+    mayDependOn: [source]
   signalstore:
     canUse: [sqlite]
-  view:
+  view-raw:
     mayDependOn: [source]
+  view-explorer:
+    mayDependOn: [model]
+  view-chart:
+    mayDependOn: [model]
+  view-dashboard:
+    mayDependOn: [model, view-chart]
   workbench:
-    mayDependOn: [inspected, inspected-fulfillment, source, view]
+    mayDependOn: [inspected, inspected-fulfillment, source, model, view, view-raw, view-explorer, view-chart, view-dashboard]
   inspected:
     mayDependOn: [inspected-fulfillment, inspected-simulation, inspected-metrics, inspected-health]
     canUse: [prometheus]

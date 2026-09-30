@@ -1,0 +1,33 @@
+/* Chart and attention side by side; one column on narrow screens, like the raw view. */
+.view-dashboard {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 1100px) {
+  .view-dashboard { grid-template-columns: minmax(0, 1fr); }
+}
+.view-dashboard section.issues { grid-column: 1 / -1; }
+.view-dashboard h3 { margin: 0 0 6px; font-size: 13px; }
+.view-dashboard h3 .count { color: var(--view-muted); font-weight: 400; }
+
+.view-dashboard table.attention { border-collapse: collapse; width: 100%; }
+.view-dashboard table.attention th,
+.view-dashboard table.attention td {
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--view-border);
+  text-align: left;
+  vertical-align: top;
+}
+.view-dashboard table.attention th {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--view-muted);
+  white-space: nowrap;
+}
+
+.view-dashboard section.issues ul { margin: 0; padding-left: 18px; }
+.view-dashboard section.issues .target { font-weight: 600; }

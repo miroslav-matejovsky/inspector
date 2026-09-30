@@ -1,0 +1,51 @@
+{{define "index" -}}
+<div class="view view-explorer">
+{{range .}}<section class="kind"><h3>{{.Kind}} <span class="count">{{.Count}}</span></h3><table class="entities">
+<thead><tr><th>Name</th><th>Health</th><th>State</th><th>Reason</th><th>Links</th><th>Backlinks</th></tr></thead>
+<tbody>
+{{range .Rows}}<tr class="health-{{.Ref.Health}}"><td>{{template "ref" .Ref}}</td><td><span class="badge">{{.Ref.Health}}</span></td><td>{{.Value}}</td><td>{{.Reason}}</td><td class="num">{{.Links}}</td><td class="num">{{.Backlinks}}</td></tr>
+{{end -}}
+</tbody>
+</table>
+{{if .Hidden}}<p class="note">{{.Hidden}} more not shown</p>{{end}}</section>
+{{else}}<p class="note">no entities</p>
+{{end -}}
+</div>
+{{- end}}
+
+{{define "entity" -}}
+<div class="view view-explorer">
+{{with .Entity}}<section class="entity health-{{.State.Health}}">
+<h3><span class="kind">{{.Kind}}</span> <span class="name">{{.Name}}</span> <span class="badge">{{.State.Health}}</span></h3>
+{{if or .State.Value .State.Reason}}<p class="state">{{with .State.Value}}<span class="value">{{.}}</span>{{end}}{{with .State.Reason}} <span class="reason">{{.}}</span>{{end}}</p>{{end}}
+<dl class="meta"><dt>ID</dt><dd>{{.ID}}</dd><dt>Read from</dt><dd>{{.Evidence.Target}} <a href="{{.Evidence.URL}}">{{.Evidence.URL}}</a> {{$.Observed}}</dd></dl>
+<h4>Properties</h4>
+{{if .Properties}}<table class="properties">
+<tbody>
+{{range .Properties}}<tr><th>{{.Name}}</th><td>{{.Value}}</td></tr>
+{{end -}}
+</tbody>
+</table>{{else}}<p class="note">none</p>{{end}}
+{{end -}}
+<h4>Links</h4>
+{{template "relations" .Links}}
+<h4>Backlinks</h4>
+{{template "relations" .Backlinks}}
+{{if .Hidden}}<p class="note">{{.Hidden}} more not shown</p>{{end}}
+</section>
+</div>
+{{- end}}
+
+{{define "relations" -}}
+{{if .}}<table class="links">
+<tbody>
+{{range .}}<tr><th>{{.Type}}</th><td>{{template "ref" .Ref}}</td></tr>
+{{end -}}
+</tbody>
+</table>{{else}}<p class="note">none</p>{{end}}
+{{- end}}
+
+{{define "ref" -}}
+{{if .Href}}<span class="ref health-{{.Health}}"><a href="{{.Href}}"><span class="kind">{{.Kind}}</span> {{.Name}}</a> <span class="health">{{.Health}}</span></span>
+{{- else}}<span class="ref missing">{{.ID}} <span class="note">not observed</span></span>{{end}}
+{{- end}}

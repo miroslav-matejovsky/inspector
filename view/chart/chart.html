@@ -1,0 +1,12 @@
+{{define "health" -}}
+<div class="view view-chart">
+{{if .Rows}}<svg class="health-by-kind" viewBox="0 0 {{.Width}} {{.Height}}" role="img" aria-label="entity health by kind">
+{{range .Rows}}<text class="label" x="0" y="{{.TextY}}">{{.Kind}}</text>
+{{range .Segments}}<rect class="health-{{.Health}}" x="{{.X}}" y="{{.Y}}" width="{{.Width}}" height="{{.Height}}"><title>{{.Title}}</title></rect>
+{{end}}<text class="count" x="{{.CountX}}" y="{{.TextY}}">{{.Total}}</text>
+{{end}}</svg>
+<p class="legend"><span class="health-ok">ok</span> <span class="health-degraded">degraded</span> <span class="health-down">down</span> <span class="health-unknown">unknown</span></p>
+{{else}}<p class="note">no entities</p>
+{{end -}}
+</div>
+{{- end}}

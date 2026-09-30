@@ -21,6 +21,10 @@ import (
 	"github.com/miroslav-matejovsky/inspector/harness/workbench"
 	"github.com/miroslav-matejovsky/inspector/source"
 	"github.com/miroslav-matejovsky/inspector/view"
+	"github.com/miroslav-matejovsky/inspector/view/chart"
+	"github.com/miroslav-matejovsky/inspector/view/dashboard"
+	"github.com/miroslav-matejovsky/inspector/view/explorer"
+	"github.com/miroslav-matejovsky/inspector/view/raw"
 )
 
 var discard = slog.New(slog.DiscardHandler)
@@ -89,11 +93,11 @@ func startInspected(t *testing.T) *inspected.App {
 	return app
 }
 
-// page gets "/" from a workbench handler of a running inspected app that
+// page gets path from a workbench handler of a running inspected app that
 // shows summaries.
-func page(t *testing.T, summaries ...source.TargetSummary) string {
+func page(t *testing.T, path string, summaries ...source.TargetSummary) string {
 	t.Helper()
-	rec := get(workbench.Handler(startInspected(t).Handler(), stubSignals{summaries: summaries}, discard), "/")
+	rec := get(workbench.Handler(startInspected(t).Handler(), stubSignals{summaries: summaries}, discard), path)
 	require.Equal(t, http.StatusOK, rec.Code)
 	return rec.Body.String()
 }
@@ -138,31 +142,32 @@ func TestWorkbenchServesInspected(t *testing.T) {
 	require.JSONEq(t, `{"status":"up"}`, rec.Body.String())
 }
 
-func TestPageShowsRawView(t *testing.T) {
+func TestRawPageShowsRawView(t *testing.T) {
 	summaries := []source.TargetSummary{
 		withLatest("alpha", 3, source.Signal{
 			ObservedAt: t0, StatusCode: 200, ContentType: "application/json", Body: []byte(`{"status":"up"}`),
 		}),
 		{Target: source.Target{Name: "beta", URL: "http://example.test/beta"}},
 	}
-	want, err := view.Raw(summaries)
+	want, err := raw.Render(summaries)
 	require.NoError(t, err)
 
-	body := page(t, summaries...)
+	body := page(t, "/raw", summaries...)
 
 	require.Contains(t, body, string(want))
 	require.Contains(t, body, string(view.Styles))
+	require.Contains(t, body, string(raw.Styles))
 }
 
 func TestPageEscapesSignals(t *testing.T) {
-	body := page(t, withLatest("alpha", 1, source.Signal{ObservedAt: t0, StatusCode: 200, Body: []byte("<script>alert(1)</script>")}))
+	body := page(t, "/raw", withLatest("alpha", 1, source.Signal{ObservedAt: t0, StatusCode: 200, Body: []byte("<script>alert(1)</script>")}))
 
 	require.Contains(t, body, "&lt;script&gt;")
 	require.NotContains(t, body, "<script>alert")
 }
 
 func TestPageRefreshes(t *testing.T) {
-	body := page(t)
+	body := page(t, "/")
 
 	require.Contains(t, body, `<body data-refresh-seconds="2">`)
 	require.Contains(t, body, `<span id="refresh-status" class="error"></span>`)
@@ -170,15 +175,19 @@ func TestPageRefreshes(t *testing.T) {
 }
 
 func TestPageShowsSummaryError(t *testing.T) {
-	var buf bytes.Buffer
-	h := workbench.Handler(startInspected(t).Handler(), stubSignals{err: errors.New("boom")}, slog.New(slog.NewTextHandler(&buf, nil)))
+	for _, path := range []string{"/", "/model", "/raw"} {
+		t.Run(path, func(t *testing.T) {
+			var buf bytes.Buffer
+			h := workbench.Handler(startInspected(t).Handler(), stubSignals{err: errors.New("boom")}, slog.New(slog.NewTextHandler(&buf, nil)))
 
-	rec := get(h, "/")
+			rec := get(h, path)
 
-	require.Equal(t, http.StatusInternalServerError, rec.Code)
-	require.Contains(t, rec.Body.String(), "signals unavailable: boom")
-	require.NotContains(t, rec.Body.String(), `class="view-raw"`)
-	require.Contains(t, buf.String(), `msg="workbench: read signals"`)
+			require.Equal(t, http.StatusInternalServerError, rec.Code)
+			require.Contains(t, rec.Body.String(), "signals unavailable: boom")
+			require.NotContains(t, rec.Body.String(), `class="view view-`)
+			require.Contains(t, buf.String(), `msg="workbench: read signals"`)
+		})
+	}
 }
 
 func TestPageShowsCollectedSignals(t *testing.T) {
@@ -201,7 +210,7 @@ func TestPageShowsCollectedSignals(t *testing.T) {
 	t.Cleanup(func() { require.NoError(t, src.Close()) })
 	require.NoError(t, src.Collect(ctx))
 
-	rec := get(workbench.Handler(app.Handler(), src, discard), "/")
+	rec := get(workbench.Handler(app.Handler(), src, discard), "/raw")
 
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.Regexp(t, `<tr class="target ok">.*>live</a></td><td class="num">1</td>.*>200</td>`, rec.Body.String())
@@ -209,8 +218,9 @@ func TestPageShowsCollectedSignals(t *testing.T) {
 	require.Contains(t, rec.Body.String(), `<span class="key">&#34;status&#34;</span>`)
 }
 
-func postMode(h http.Handler, dependency, mode string) *httptest.ResponseRecorder {
-	req := httptest.NewRequest(http.MethodPost, "/controls/dependencies/"+dependency, strings.NewReader(url.Values{"mode": {mode}}.Encode()))
+func postMode(h http.Handler, dependency, mode, ret string) *httptest.ResponseRecorder {
+	form := url.Values{"mode": {mode}, "return": {ret}}
+	req := httptest.NewRequest(http.MethodPost, "/controls/dependencies/"+dependency, strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
@@ -227,7 +237,7 @@ func controls(t *testing.T, body, dependency string) string {
 }
 
 func TestPageHasDependencyControls(t *testing.T) {
-	body := page(t)
+	body := page(t, "/")
 
 	for _, dep := range []string{"payment-gateway", "warehouse"} {
 		form := controls(t, body, dep)
@@ -239,7 +249,7 @@ func TestPageHasDependencyControls(t *testing.T) {
 
 func TestPageMarksActiveMode(t *testing.T) {
 	h := workbench.Handler(startInspected(t).Handler(), stubSignals{}, discard)
-	require.Equal(t, http.StatusSeeOther, postMode(h, "payment-gateway", "outage").Code)
+	require.Equal(t, http.StatusSeeOther, postMode(h, "payment-gateway", "outage", "/").Code)
 
 	rec := get(h, "/")
 
@@ -265,7 +275,7 @@ func TestPageShowsControlsError(t *testing.T) {
 	require.Equal(t, http.StatusInternalServerError, rec.Code)
 	require.Contains(t, rec.Body.String(), "dependency modes unavailable")
 	require.Contains(t, rec.Body.String(), "simulation stopped")
-	require.Contains(t, rec.Body.String(), `class="view-raw"`)
+	require.Contains(t, rec.Body.String(), `class="view view-dashboard"`)
 	require.Contains(t, buf.String(), `msg="workbench: read dependency modes"`)
 }
 
@@ -273,7 +283,7 @@ func TestDependencyControlSetsMode(t *testing.T) {
 	app := startInspected(t)
 	h := workbench.Handler(app.Handler(), stubSignals{}, discard)
 
-	rec := postMode(h, "payment-gateway", "outage")
+	rec := postMode(h, "payment-gateway", "outage", "/")
 
 	require.Equal(t, http.StatusSeeOther, rec.Code)
 	require.Equal(t, "/", rec.Header().Get("Location"))
@@ -286,7 +296,7 @@ func TestDependencyControlShowsInspectedError(t *testing.T) {
 	app := startInspected(t)
 	h := workbench.Handler(app.Handler(), stubSignals{}, discard)
 
-	rec := postMode(h, "payment-gateway", "bogus")
+	rec := postMode(h, "payment-gateway", "bogus", "/")
 
 	require.Equal(t, http.StatusUnprocessableEntity, rec.Code)
 	require.Contains(t, rec.Body.String(), "set payment-gateway to bogus")
@@ -364,5 +374,133 @@ func TestRunStopsOnContextCancel(t *testing.T) {
 		require.NoError(t, err)
 	case <-time.After(5 * time.Second):
 		t.Fatal("Run did not stop after context cancel")
+	}
+}
+
+// collectInspected starts an inspected app, serves it over HTTP and
+// collects one round of the five interpreted targets and health_live with a
+// Source. before runs against the app handler before the round.
+func collectInspected(t *testing.T, before func(h http.Handler)) (http.Handler, *source.Source) {
+	t.Helper()
+	ctx := context.Background()
+	app := startInspected(t)
+	srv := httptest.NewServer(app.Handler())
+	t.Cleanup(srv.Close)
+	if before != nil {
+		before(app.Handler())
+	}
+	targets := []source.Target{{Name: "health_live", URL: srv.URL + "/inspected/health/live"}}
+	for _, target := range interpretedTargets {
+		targets = append(targets, source.Target{Name: target[0], URL: srv.URL + target[1]})
+	}
+	src, err := source.Open(ctx, source.Config{
+		Targets:      targets,
+		Interval:     time.Hour,
+		Timeout:      time.Second,
+		Retention:    time.Hour,
+		MaxBodyBytes: 1 << 20,
+		DatabasePath: filepath.Join(t.TempDir(), "source.db"),
+	}, srv.Client(), discard)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, src.Close()) })
+	require.NoError(t, src.Collect(ctx))
+	return app.Handler(), src
+}
+
+func TestDashboardPageShowsInspectedModel(t *testing.T) {
+	app, src := collectInspected(t, nil)
+
+	rec := get(workbench.Handler(app, src, discard), "/")
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Contains(t, rec.Body.String(), `class="view view-dashboard"`)
+	require.Contains(t, rec.Body.String(), "<svg")
+}
+
+func TestDashboardPageShowsOutage(t *testing.T) {
+	app, src := collectInspected(t, func(h http.Handler) { outage(t, h) })
+
+	rec := get(workbench.Handler(app, src, discard), "/")
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Contains(t, rec.Body.String(), `href="/model?entity=%2Finspected%2Fapi%2Fdependencies%2Fpayment-gateway"`)
+}
+
+func TestModelPageListsKinds(t *testing.T) {
+	app, src := collectInspected(t, nil)
+
+	rec := get(workbench.Handler(app, src, discard), "/model")
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	for _, kind := range []string{"service", "readiness", "check", "dependency", "product"} {
+		require.Contains(t, rec.Body.String(), "<h3>"+kind+` <span class="count">`)
+	}
+}
+
+func TestEntityPageShowsEntity(t *testing.T) {
+	app, src := collectInspected(t, nil)
+
+	rec := get(workbench.Handler(app, src, discard), "/model?entity=%2Finspected%2Fapi%2Fdependencies%2Fpayment-gateway")
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Contains(t, rec.Body.String(), "payment-gateway")
+	require.Contains(t, rec.Body.String(), "determined by")
+}
+
+func TestEntityPageOfUnknownEntityIsNotFound(t *testing.T) {
+	app, src := collectInspected(t, nil)
+
+	rec := get(workbench.Handler(app, src, discard), "/model?entity=%2Fnope")
+
+	require.Equal(t, http.StatusNotFound, rec.Code)
+	require.Contains(t, rec.Body.String(), "entity &#34;/nope&#34; is not in the model")
+}
+
+func TestPagesMarkActiveTab(t *testing.T) {
+	h := workbench.Handler(startInspected(t).Handler(), stubSignals{}, discard)
+	for path, tab := range map[string]string{"/": "/", "/model": "/model", "/model?entity=%2Fx": "/model", "/raw": "/raw"} {
+		body := get(h, path).Body.String()
+
+		require.Equal(t, 1, strings.Count(body, `aria-current="page"`), path)
+		require.Contains(t, body, `<a href="`+tab+`" class="active" aria-current="page">`, path)
+	}
+}
+
+func TestPagesIncludeEveryStyle(t *testing.T) {
+	body := page(t, "/")
+
+	for _, styles := range []string{string(view.Styles), string(raw.Styles), string(explorer.Styles), string(chart.Styles), string(dashboard.Styles)} {
+		require.Contains(t, body, styles)
+	}
+}
+
+func TestPagesCarryReturnPath(t *testing.T) {
+	h := workbench.Handler(startInspected(t).Handler(), stubSignals{}, discard)
+
+	body := get(h, "/model?entity=%2Fx").Body.String()
+
+	for _, dep := range []string{"payment-gateway", "warehouse"} {
+		require.Contains(t, controls(t, body, dep), `name="return" value="/model?entity=%2Fx"`)
+	}
+}
+
+func TestDependencyControlReturnsToPage(t *testing.T) {
+	h := workbench.Handler(startInspected(t).Handler(), stubSignals{}, discard)
+
+	rec := postMode(h, "payment-gateway", "outage", "/model?entity=%2Fx")
+
+	require.Equal(t, http.StatusSeeOther, rec.Code)
+	require.Equal(t, "/model?entity=%2Fx", rec.Header().Get("Location"))
+}
+
+func TestDependencyControlRejectsInvalidReturn(t *testing.T) {
+	h := workbench.Handler(startInspected(t).Handler(), stubSignals{}, discard)
+	for _, ret := range []string{"", "https://evil.test/", "//evil.test/", "/elsewhere", `/\evil.test`} {
+		rec := postMode(h, "payment-gateway", "outage", ret)
+
+		require.Equal(t, http.StatusBadRequest, rec.Code, ret)
+		require.Contains(t, rec.Body.String(), "is not a workbench page", ret)
+		dep := get(h, inspected.PathPrefix+"/api/dependencies/payment-gateway")
+		require.Contains(t, dep.Body.String(), `"mode":"healthy"`, ret)
 	}
 }

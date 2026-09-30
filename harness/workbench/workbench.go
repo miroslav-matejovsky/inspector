@@ -10,17 +10,23 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/miroslav-matejovsky/inspector/harness/inspected"
+	"github.com/miroslav-matejovsky/inspector/model"
 	"github.com/miroslav-matejovsky/inspector/source"
 	"github.com/miroslav-matejovsky/inspector/view"
+	"github.com/miroslav-matejovsky/inspector/view/chart"
+	"github.com/miroslav-matejovsky/inspector/view/dashboard"
+	"github.com/miroslav-matejovsky/inspector/view/explorer"
+	"github.com/miroslav-matejovsky/inspector/view/raw"
 )
 
 //go:embed index.html
 var indexHTML string
 
-// page is the workbench page. It shows the raw view of package view.
+// page is the template of every workbench page; the view differs per page.
 var page = template.Must(template.New("index").Parse(indexHTML))
 
 // pageRefreshSeconds is how often the page reloads itself.
@@ -33,54 +39,131 @@ type Signals interface {
 	Summary(ctx context.Context) ([]source.TargetSummary, error)
 }
 
-// Handler serves the workbench page at "/" and delegates every path under
-// inspected.PathPrefix+"/" to inspectedHandler, without stripping the prefix.
-// The page shows the raw view of the summaries of signals; a failed read or
-// render of signals is logged to logger and shown on the page with status 500.
-// The page has a form per inspected dependency with its current mode marked
-// active; a button posts its mode to "/controls/dependencies/{name}", see
-// setDependencyMode. A failed read of the modes is logged and shown in place
-// of the forms with status 500.
-func Handler(inspectedHandler http.Handler, signals Signals, logger *slog.Logger) http.Handler {
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
-		data := struct {
-			RefreshSeconds int
-			Controls       []dependencyControl
-			ControlsError  string
-			Styles         template.CSS
-			View           template.HTML
-			Error          string
-		}{RefreshSeconds: pageRefreshSeconds, Styles: view.Styles}
-		status := http.StatusOK
-		controls, err := dependencyControls(r.Context(), inspectedHandler)
-		if err != nil {
-			logger.Error("workbench: read dependency modes", "error", err)
-			status = http.StatusInternalServerError
-			data.ControlsError = fmt.Sprintf("dependency modes unavailable: %v", err)
-		}
-		data.Controls = controls
-		summaries, err := signals.Summary(r.Context())
-		if err == nil {
-			data.View, err = view.Raw(summaries)
-		}
-		if err != nil {
-			logger.Error("workbench: read signals", "error", err)
-			status = http.StatusInternalServerError
-			data.Error = fmt.Sprintf("signals unavailable: %v", err)
-		}
+// Paths of the pages, in tab order.
+const (
+	pathDashboard = "/"
+	pathModel     = "/model"
+	pathRaw       = "/raw"
+)
 
-		var buf bytes.Buffer
-		if err := page.Execute(&buf, data); err != nil {
-			logger.Error("workbench: render page", "error", err)
-			http.Error(w, "render page", http.StatusInternalServerError)
-			return
+// tabs are the pages of the workbench, in tab order.
+var tabs = []tab{{Path: pathDashboard, Label: "Dashboard"}, {Path: pathModel, Label: "Model"}, {Path: pathRaw, Label: "Raw"}}
+
+// tab is one page in the panel header. Active marks the page shown.
+type tab struct {
+	Path, Label string
+	Active      bool
+}
+
+// pageStyles is the CSS of every view, in the order a page includes it.
+var pageStyles = []template.CSS{view.Styles, raw.Styles, explorer.Styles, chart.Styles, dashboard.Styles}
+
+// pageData is the input of the page template.
+type pageData struct {
+	RefreshSeconds int
+	Tabs           []tab  // copy of tabs, Active set for the page shown
+	Return         string // r.URL.RequestURI(): the page to return to after a control
+	Controls       []dependencyControl
+	ControlsError  string
+	Styles         []template.CSS
+	View           template.HTML
+	Error          string
+}
+
+// pageView is what a page shows below the header.
+type pageView struct {
+	View   template.HTML
+	Status int    // HTTP status of the page
+	Error  string // shown instead of View when not empty
+}
+
+// renderView renders the view of a page from the summaries of the Source.
+// An error means the view could not be rendered.
+type renderView func(r *http.Request, summaries []source.TargetSummary) (pageView, error)
+
+func renderDashboard(_ *http.Request, s []source.TargetSummary) (pageView, error) {
+	v, err := dashboard.Render(model.Build(s, inspectedInterpreter), pathModel)
+	return pageView{View: v, Status: http.StatusOK}, err
+}
+
+// renderModel shows the explorer index, or the entity of the query parameter
+// entity. An entity that is not in the model is a 404 page, not an error:
+// an order may be pruned between two refreshes.
+func renderModel(r *http.Request, s []source.TargetSummary) (pageView, error) {
+	m := model.Build(s, inspectedInterpreter)
+	id := r.URL.Query().Get("entity")
+	if id == "" {
+		v, err := explorer.Index(m, pathModel)
+		return pageView{View: v, Status: http.StatusOK}, err
+	}
+	if _, ok := m.Entity(id); !ok {
+		return pageView{Status: http.StatusNotFound, Error: fmt.Sprintf("entity %q is not in the model", id)}, nil
+	}
+	v, err := explorer.Entity(m, id, pathModel)
+	return pageView{View: v, Status: http.StatusOK}, err
+}
+
+func renderRaw(_ *http.Request, s []source.TargetSummary) (pageView, error) {
+	v, err := raw.Render(s)
+	return pageView{View: v, Status: http.StatusOK}, err
+}
+
+// Handler serves the pages of the workbench, see the package documentation
+// (# Pages), the dependency controls at "/controls/dependencies/{name}", and
+// every path under inspected.PathPrefix+"/" through inspectedHandler, without
+// stripping the prefix. Failed reads of signals or dependency modes are
+// logged to logger and shown on the page with status 500.
+func Handler(inspectedHandler http.Handler, signals Signals, logger *slog.Logger) http.Handler {
+	servePage := func(path string, render renderView) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			data := pageData{
+				RefreshSeconds: pageRefreshSeconds,
+				Tabs:           slices.Clone(tabs),
+				Return:         r.URL.RequestURI(),
+				Styles:         pageStyles,
+			}
+			for i := range data.Tabs {
+				data.Tabs[i].Active = data.Tabs[i].Path == path
+			}
+			status := http.StatusOK
+			controls, err := dependencyControls(r.Context(), inspectedHandler)
+			if err != nil {
+				logger.Error("workbench: read dependency modes", "error", err)
+				status = http.StatusInternalServerError
+				data.ControlsError = fmt.Sprintf("dependency modes unavailable: %v", err)
+			}
+			data.Controls = controls
+			var pv pageView
+			summaries, err := signals.Summary(r.Context())
+			if err == nil {
+				pv, err = render(r, summaries)
+			}
+			if err != nil {
+				logger.Error("workbench: read signals", "error", err)
+				status = http.StatusInternalServerError
+				data.Error = fmt.Sprintf("signals unavailable: %v", err)
+			} else {
+				status = max(status, pv.Status)
+				data.View, data.Error = pv.View, pv.Error
+			}
+
+			var buf bytes.Buffer
+			if err := page.Execute(&buf, data); err != nil {
+				logger.Error("workbench: render page", "error", err)
+				http.Error(w, "render page", http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.WriteHeader(status)
+			// A failed write to the client has no recovery.
+			_, _ = w.Write(buf.Bytes())
 		}
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.WriteHeader(status)
-		// A failed write to the client has no recovery.
-		_, _ = w.Write(buf.Bytes())
-	})
+	}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /{$}", servePage(pathDashboard, renderDashboard))
+	mux.HandleFunc("GET "+pathModel, servePage(pathModel, renderModel))
+	mux.HandleFunc("GET "+pathRaw, servePage(pathRaw, renderRaw))
 	mux.HandleFunc("POST /controls/dependencies/{name}", func(w http.ResponseWriter, r *http.Request) {
 		setDependencyMode(w, r, inspectedHandler)
 	})
