@@ -2,3 +2,5 @@
 .env.ps1
 bin/*
 .test-results/*
+/logs/
+/data/

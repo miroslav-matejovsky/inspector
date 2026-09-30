@@ -4,17 +4,31 @@ Development tooling for running Inspector against something to inspect.
 
 ## workbench
 
-`workbench/` is a Go package that serves a web page with one **workbench** panel, empty for now. It also mounts the inspected simulation under `/inspected/` on the same server.
+`workbench/` is a Go package that serves a web page with one **workbench** panel. It mounts the inspected simulation under `/inspected/` on the same server and runs a `source.Source` that reads the simulation through the workbench listener.
 
 The entry point is `cmd/workbench`. Start it with `task workbench` and open http://localhost:8080. Every setting is a required flag without a default:
 
 | Flag | Meaning |
 | --- | --- |
 | `-addr` | Listen address, for example `localhost:8080`. |
+| `-log-dir` | Directory of the log files, created when missing, for example `logs`. |
+| `-log-level` | Lowest level written to the log file: `debug`, `info`, `warn` or `error`. |
 | `-inspected-seed` | Seed of the traffic generator. The same seed produces the same traffic. |
 | `-inspected-orders-per-tick` | Simulated orders placed per tick, 0 to 100. |
 | `-inspected-tick-interval` | Wall-clock time between simulation ticks, for example `1s`. |
 | `-inspected-request-timeout` | Max wait for the simulation per HTTP request, for example `2s`. |
+| `-source-database` | SQLite file of the collected signals, for example `data/source.db`. Its directory is created when missing. |
+| `-source-interval` | Time between collection rounds, for example `5s`. |
+| `-source-timeout` | Max wait for one read of one target, for example `2s`. |
+| `-source-retention` | Signals older than this are deleted after each round, for example `10m`. |
+| `-source-max-body-bytes` | A larger body is stored as a failed read, for example `2097152`. |
+| `-source-target` | `name=path` of a workbench path to read, repeated, for example `health_ready=/inspected/health/ready`. |
+
+Each run writes its log to `logs/workbench-<yyyyMMdd-HHmmss>.log`; the path is printed at startup. Collected signals are kept in `data/source.db`.
+
+Page. The page shows the raw view of package `view`: a full-width table with one row per target (stored signals, then time, status, duration, size, content type and error of the latest signal), and below it the latest signal of each target with its body, in two columns. On screens up to 1100px wide the signals use one column. Every 2 seconds the panel is refreshed in place, without a page reload, and scroll positions are kept. JSON bodies are indented and highlighted, metrics are highlighted, other bodies are plain text; at most 500 lines per body are shown. `task workbench` reads the index, both health endpoints, the metrics and the three API collections. It does not read `/inspected/sim`.
+
+Controls. The page header has buttons `healthy`, `slow` and `outage` for `payment-gateway` and `warehouse`. The button of the current mode, read from `GET /inspected/sim`, is filled in the color of its mode. A button sets the dependency mode through `PUT /inspected/sim/dependencies/{name}` and refreshes the panel.
 
 ## inspected
 

@@ -49,3 +49,4 @@ A plan is complete only when all implementation tasks are finished, all tests pa
 
 | Name | Description |
 |------|-------------|
+| [source](source/README.md) | Package `source`: collect HTTP signals of a running system into embedded SQLite; file logging; temporary text view in the workbench. |
