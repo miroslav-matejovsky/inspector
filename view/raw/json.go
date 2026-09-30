@@ -1,4 +1,4 @@
-package view
+package raw
 
 import "strings"
 

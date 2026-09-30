@@ -59,6 +59,14 @@
   }
   .panel .content { flex: 1; min-height: 0; padding: 12px; overflow: auto; }
   #refresh-status:empty { display: none; }
+  .tabs { display: flex; gap: 4px; }
+  .tabs a {
+    padding: 2px 10px;
+    border-radius: 4px;
+    color: var(--muted);
+    text-decoration: none;
+  }
+  .tabs a.active { background: var(--bg); color: var(--text); font-weight: 600; }
   .controls { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0; }
   .controls form { display: flex; gap: 4px; align-items: center; margin: 0; }
   .controls .dependency { margin-right: 2px; font-size: 12px; color: var(--muted); }
@@ -84,19 +92,20 @@
   }
   .error { margin: 0; font: 12px/1.4 ui-monospace, monospace; color: #cf222e; }
 </style>
-<style>{{.Styles}}</style>
+{{range .Styles}}<style>{{.}}</style>{{end}}
 </head>
 <body data-refresh-seconds="{{.RefreshSeconds}}">
   <section class="panel" id="workbench">
     <header>
       <h2>Workbench</h2>
+      <nav class="tabs">{{range .Tabs}}<a href="{{.Path}}"{{if .Active}} class="active" aria-current="page"{{end}}>{{.Label}}</a>{{end}}</nav>
       <span id="refresh-status" class="error"></span>
       <div class="controls">
         {{- if .ControlsError}}
         <span class="error">{{.ControlsError}}</span>
         {{- end}}
         {{- range .Controls}}
-        <form method="post" action="/controls/dependencies/{{.Name}}"><span class="dependency">{{.Name}}</span>
+        <form method="post" action="/controls/dependencies/{{.Name}}"><span class="dependency">{{.Name}}</span><input type="hidden" name="return" value="{{$.Return}}">
           {{- range .Buttons}}<button name="mode" value="{{.Mode}}" class="mode-{{.Mode}}{{if .Active}} active{{end}}" aria-pressed="{{.Active}}">{{.Mode}}</button>{{end -}}
         </form>
         {{- end}}
@@ -105,12 +114,13 @@
     <div class="content" id="signals" data-scroll="content">{{if .Error}}<pre class="error">{{.Error}}</pre>{{else}}{{.View}}{{end}}</div>
   </section>
 <script>
-// The panel is replaced in place with the panel of a fresh GET / every
-// data-refresh-seconds, so the page never reloads. Scroll positions of the
-// elements with a data-scroll key survive the swap. The control forms are
-// sent with fetch; their 303 leads to GET /, whose panel is shown the same
-// way. A response that starts before the last shown one is dropped, so a
-// slow refresh never undoes a mode change.
+// The panel is replaced in place with the panel of a fresh GET of the current
+// page every data-refresh-seconds, so the page never reloads. Scroll positions
+// of the elements with a data-scroll key survive the swap. The control forms
+// are sent with fetch; their 303 leads to GET of the page given by the form
+// value return, whose panel is shown the same way. A response that starts
+// before the last shown one is dropped, so a slow refresh never undoes a mode
+// change.
 (() => {
   const refreshMs = Number(document.body.dataset.refreshSeconds) * 1000;
   let started = 0;
@@ -157,7 +167,7 @@
   }
 
   async function refresh() {
-    await load(() => fetch("/", { cache: "no-store" }));
+    await load(() => fetch(location.pathname + location.search, { cache: "no-store" }));
     setTimeout(refresh, refreshMs);
   }
 

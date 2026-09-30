@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 
 	"github.com/miroslav-matejovsky/inspector/harness/inspected"
 	"github.com/miroslav-matejovsky/inspector/harness/inspected/fulfillment"
@@ -79,11 +80,32 @@ func dependencyControls(ctx context.Context, inspectedHandler http.Handler) ([]d
 	return controls, nil
 }
 
+// returnPath returns the path and query of the page to go back to after a
+// control: the form value "return" when its path is a page of the workbench.
+// Anything else, such as another host or scheme, is an error, so that the
+// redirect never leaves the workbench.
+func returnPath(r *http.Request) (string, error) {
+	ret := r.FormValue("return")
+	u, err := url.Parse(ret)
+	if err != nil || u.Scheme != "" || u.Host != "" ||
+		!slices.ContainsFunc(tabs, func(t tab) bool { return t.Path == u.Path }) {
+		return "", fmt.Errorf("return %q is not a workbench page", ret)
+	}
+	return u.RequestURI(), nil
+}
+
 // setDependencyMode sets the mode of the dependency {name} to the form value
 // "mode" through PUT inspected.PathPrefix+"/sim/dependencies/{name}". Success
-// redirects to the page with 303. A rejected request answers with the status
-// of inspected and its response body as text.
+// redirects with 303 to the page of the form value "return", see returnPath;
+// an invalid return answers 400 before inspected is called. A rejected
+// request answers with the status of inspected and its response body as
+// text.
 func setDependencyMode(w http.ResponseWriter, r *http.Request, inspectedHandler http.Handler) {
+	ret, err := returnPath(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	name, mode := r.PathValue("name"), r.FormValue("mode")
 	body, err := json.Marshal(struct {
 		Mode string `json:"mode"`
@@ -102,5 +124,5 @@ func setDependencyMode(w http.ResponseWriter, r *http.Request, inspectedHandler 
 		http.Error(w, fmt.Sprintf("set %s to %s: %v", name, mode, err), status)
 		return
 	}
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	http.Redirect(w, r, ret, http.StatusSeeOther)
 }

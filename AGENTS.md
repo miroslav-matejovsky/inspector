@@ -18,7 +18,7 @@
 
 ## Documentation
 
-- Use root `README.md` for project overview and architecture.
+- Use root `README.md` for the user-oriented project overview; architecture and development details live in `docs/`.
 - Read documentation before changing code.
 - Keep documentation close to code and synchronized with the implementation.
 - Outdated documentation is considered a defect.

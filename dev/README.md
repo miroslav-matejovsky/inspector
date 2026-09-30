@@ -1,7 +1,7 @@
 # Dev
 
 Working records that drive the evolution of this repository. They are not user or API
-documentation. Architecture overview lives in the root `README.md`; package documentation
+documentation. Architecture overview lives in `docs/architecture.md`; package documentation
 lives in each Go package's `doc.go`.
 
 Each folder has its own `README.md` that defines its file format and holds its index.

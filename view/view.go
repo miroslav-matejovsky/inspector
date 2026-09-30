@@ -8,13 +8,7 @@ import (
 //go:embed view.css
 var styles string
 
-// Styles is the CSS of the views of this package. A page that shows a view
-// includes it once, in a style element.
+// Styles is the shared CSS of every view: the palette in light and dark
+// mode, the common classes and the health classes. A page that shows any
+// view includes it once, before the CSS of the views.
 var Styles = template.CSS(styles)
-
-//go:embed raw.html
-var rawHTML string
-
-// templates holds the templates of the raw view and its smaller views:
-// "raw", "targets", "signal" and "body".
-var templates = template.Must(template.New("view").Parse(rawHTML))

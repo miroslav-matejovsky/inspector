@@ -1,4 +1,4 @@
-package view
+package raw
 
 import (
 	"fmt"
@@ -55,12 +55,12 @@ type signalView struct {
 	Body        body
 }
 
-// Raw renders the raw view of summaries as an HTML fragment: the targets
+// Render renders the raw view of summaries as an HTML fragment: the targets
 // table, then the signal view of every target with a latest signal, in the
 // order of summaries. The fragment is produced by html/template, so every
 // value from the inspected system is escaped. An error means a template
 // failed to execute.
-func Raw(summaries []source.TargetSummary) (template.HTML, error) {
+func Render(summaries []source.TargetSummary) (template.HTML, error) {
 	data := rawData{Targets: make([]targetRow, len(summaries))}
 	for i, s := range summaries {
 		data.Targets[i] = newTargetRow(s)
@@ -70,7 +70,7 @@ func Raw(summaries []source.TargetSummary) (template.HTML, error) {
 	}
 	var out strings.Builder
 	if err := templates.ExecuteTemplate(&out, "raw", data); err != nil {
-		return "", fmt.Errorf("view: render raw view: %w", err)
+		return "", fmt.Errorf("raw: render: %w", err)
 	}
 	// The output of html/template is escaped HTML.
 	return template.HTML(out.String()), nil

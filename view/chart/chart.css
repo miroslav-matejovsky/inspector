@@ -1,0 +1,6 @@
+.view-chart svg { display: block; width: 100%; max-width: 640px; height: auto; }
+.view-chart text { font: 12px system-ui, sans-serif; fill: currentColor; }
+.view-chart text.count { fill: var(--view-muted); }
+.view-chart rect { fill: var(--view-health); }
+.view-chart .legend span { color: var(--view-health); margin-right: 12px; }
+.view-chart .legend span::before { content: "\25A0 "; }
