@@ -10,18 +10,21 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/miroslav-matejovsky/inspector/harness/inspected"
 	"github.com/miroslav-matejovsky/inspector/source"
+	"github.com/miroslav-matejovsky/inspector/view"
 )
 
 //go:embed index.html
 var indexHTML string
 
-// page is the workbench page. html/template escapes the signals text.
+// page is the workbench page. It shows the raw view of package view.
 var page = template.Must(template.New("index").Parse(indexHTML))
+
+// pageRefreshSeconds is how often the page reloads itself.
+const pageRefreshSeconds = 2
 
 const shutdownTimeout = 5 * time.Second
 
@@ -32,29 +35,29 @@ type Signals interface {
 
 // Handler serves the workbench page at "/" and delegates every path under
 // inspected.PathPrefix+"/" to inspectedHandler, without stripping the prefix.
-// The page shows the summaries of signals; a failed read of signals is
-// logged to logger and shown on the page with status 500.
+// The page shows the raw view of the summaries of signals; a failed read or
+// render of signals is logged to logger and shown on the page with status 500.
 func Handler(inspectedHandler http.Handler, signals Signals, logger *slog.Logger) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
+		data := struct {
+			RefreshSeconds int
+			Styles         template.CSS
+			View           template.HTML
+			Error          string
+		}{RefreshSeconds: pageRefreshSeconds, Styles: view.Styles}
 		status := http.StatusOK
-		var text strings.Builder
 		summaries, err := signals.Summary(r.Context())
 		if err == nil {
-			err = writeSignals(&text, summaries)
+			data.View, err = view.Raw(summaries)
 		}
 		if err != nil {
 			logger.Error("workbench: read signals", "error", err)
 			status = http.StatusInternalServerError
-			text.Reset()
-			fmt.Fprintf(&text, "signals unavailable: %v", err)
+			data.Error = fmt.Sprintf("signals unavailable: %v", err)
 		}
 
 		var buf bytes.Buffer
-		data := struct {
-			RefreshSeconds int
-			Signals        string
-		}{pageRefreshSeconds, text.String()}
 		if err := page.Execute(&buf, data); err != nil {
 			logger.Error("workbench: render page", "error", err)
 			http.Error(w, "render page", http.StatusInternalServerError)

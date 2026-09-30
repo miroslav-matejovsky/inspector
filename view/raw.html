@@ -1,0 +1,32 @@
+{{define "raw" -}}
+<div class="view-raw">
+{{template "targets" .Targets}}
+{{range .Signals}}{{template "signal" .}}
+{{end -}}
+</div>
+{{- end}}
+
+{{define "targets" -}}
+<table class="targets">
+<thead><tr><th>Target</th><th>Signals</th><th>Observed</th><th>Status</th><th>Duration</th><th>Size</th><th>Content type</th><th>Error</th></tr></thead>
+<tbody>
+{{range .}}<tr class="target {{.State}}"><td class="name" title="{{.URL}}">{{if .Anchor}}<a href="#{{.Anchor}}">{{.Name}}</a>{{else}}{{.Name}}{{end}}</td><td class="num">{{.Signals}}</td><td>{{.Observed}}</td><td class="num status">{{.Status}}</td><td class="num">{{.Duration}}</td><td class="num">{{.Size}}</td><td>{{.ContentType}}</td><td class="error">{{.Error}}</td></tr>
+{{end -}}
+</tbody>
+</table>
+{{- end}}
+
+{{define "signal" -}}
+<section class="signal {{.State}}" id="{{.Anchor}}">
+<h3><span class="name">{{.Name}}</span><span class="status">{{.Status}}</span><a class="url" href="{{.URL}}">{{.URL}}</a></h3>
+<p class="meta"><span>{{.Observed}}</span><span>{{.Duration}}</span><span>{{.Size}}</span><span>{{.ContentType}}</span></p>
+{{if .Error}}<p class="error">{{.Error}}</p>{{else}}{{template "body" .Body}}{{end}}
+</section>
+{{- end}}
+
+{{define "body" -}}
+{{if .Note}}<p class="note">{{.Note}}</p>{{end -}}
+{{if .Lines}}<pre class="body body-{{.Format}}">{{range .Lines}}{{range .}}{{if .Class}}<span class="{{.Class}}">{{.Text}}</span>{{else}}{{.Text}}{{end}}{{end}}
+{{end}}</pre>{{end -}}
+{{if .Hidden}}<p class="note">{{.Hidden}} more lines not shown</p>{{end}}
+{{- end}}

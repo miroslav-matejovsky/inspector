@@ -31,6 +31,7 @@ components:
   source: { in: source }
   signalstore: { in: internal/signalstore }
   logfile: { in: internal/logfile }
+  view: { in: view }
   workbench: { in: harness/workbench }
   inspected: { in: harness/inspected }
   inspected-fulfillment: { in: harness/inspected/fulfillment }
@@ -52,8 +53,10 @@ deps:
     mayDependOn: [signalstore]
   signalstore:
     canUse: [sqlite]
+  view:
+    mayDependOn: [source]
   workbench:
-    mayDependOn: [inspected, source]
+    mayDependOn: [inspected, source, view]
   inspected:
     mayDependOn: [inspected-fulfillment, inspected-simulation, inspected-metrics, inspected-health]
     canUse: [prometheus]

@@ -51,13 +51,14 @@
     color: var(--muted);
   }
   .panel .content { flex: 1; padding: 12px; overflow: auto; }
-  pre { margin: 0; font: 12px/1.4 ui-monospace, monospace; }
+  .error { margin: 0; font: 12px/1.4 ui-monospace, monospace; color: #cf222e; }
 </style>
+<style>{{.Styles}}</style>
 </head>
 <body>
   <section class="panel" id="workbench">
     <h2>Workbench</h2>
-    <div class="content"><pre id="signals">{{.Signals}}</pre></div>
+    <div class="content" id="signals">{{if .Error}}<pre class="error">{{.Error}}</pre>{{else}}{{.View}}{{end}}</div>
   </section>
 </body>
 </html>

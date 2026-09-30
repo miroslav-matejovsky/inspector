@@ -19,6 +19,7 @@ import (
 	"github.com/miroslav-matejovsky/inspector/harness/inspected"
 	"github.com/miroslav-matejovsky/inspector/harness/workbench"
 	"github.com/miroslav-matejovsky/inspector/source"
+	"github.com/miroslav-matejovsky/inspector/view"
 )
 
 var discard = slog.New(slog.DiscardHandler)
@@ -135,31 +136,20 @@ func TestWorkbenchServesInspected(t *testing.T) {
 	require.JSONEq(t, `{"status":"up"}`, rec.Body.String())
 }
 
-func TestPageShowsSignals(t *testing.T) {
-	body := page(t,
+func TestPageShowsRawView(t *testing.T) {
+	summaries := []source.TargetSummary{
 		withLatest("alpha", 3, source.Signal{
-			ObservedAt: t0, StatusCode: 200, Duration: 1500 * time.Microsecond, Body: []byte("abc"),
+			ObservedAt: t0, StatusCode: 200, ContentType: "application/json", Body: []byte(`{"status":"up"}`),
 		}),
-		source.TargetSummary{Target: source.Target{Name: "beta", URL: "http://example.test/beta"}},
-	)
+		{Target: source.Target{Name: "beta", URL: "http://example.test/beta"}},
+	}
+	want, err := view.Raw(summaries)
+	require.NoError(t, err)
 
-	require.Regexp(t, `alpha\s+3\s+2026-09-30T01:02:03Z\s+200\s+1\.5ms\s+3\s+-`, body)
-	require.Regexp(t, `beta\s+0\s+-\s+-\s+-\s+-\s+-`, body)
-	require.Contains(t, body, "--- alpha: 3 bytes ---")
-}
+	body := page(t, summaries...)
 
-func TestPageShowsFailedRead(t *testing.T) {
-	body := page(t, withLatest("alpha", 1, source.Signal{ObservedAt: t0, Error: "connection refused"}))
-
-	require.Regexp(t, `alpha\s+1\s+\S+\s+-\s+\S+\s+0\s+connection refused`, body)
-}
-
-func TestPageTruncatesPreview(t *testing.T) {
-	body := page(t, withLatest("alpha", 1, source.Signal{ObservedAt: t0, StatusCode: 200, Body: bytes.Repeat([]byte("x"), 600)}))
-
-	require.Contains(t, body, "--- alpha: first 512 of 600 bytes ---")
-	require.Contains(t, body, strings.Repeat("x", 512))
-	require.NotContains(t, body, strings.Repeat("x", 513))
+	require.Contains(t, body, string(want))
+	require.Contains(t, body, string(view.Styles))
 }
 
 func TestPageEscapesSignals(t *testing.T) {
@@ -181,6 +171,7 @@ func TestPageShowsSummaryError(t *testing.T) {
 
 	require.Equal(t, http.StatusInternalServerError, rec.Code)
 	require.Contains(t, rec.Body.String(), "signals unavailable: boom")
+	require.NotContains(t, rec.Body.String(), `class="view-raw"`)
 	require.Contains(t, buf.String(), `msg="workbench: read signals"`)
 }
 
@@ -207,8 +198,9 @@ func TestPageShowsCollectedSignals(t *testing.T) {
 	rec := get(workbench.Handler(app.Handler(), src, discard), "/")
 
 	require.Equal(t, http.StatusOK, rec.Code)
-	require.Regexp(t, `live\s+1\s+\S+\s+200`, rec.Body.String())
-	require.Regexp(t, `ready\s+1\s+\S+\s+200`, rec.Body.String())
+	require.Regexp(t, `<tr class="target ok">.*>live</a></td><td class="num">1</td>.*>200</td>`, rec.Body.String())
+	require.Regexp(t, `<tr class="target ok">.*>ready</a></td><td class="num">1</td>.*>200</td>`, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `<span class="key">&#34;status&#34;</span>`)
 }
 
 func TestRunRejectsInvalidConfig(t *testing.T) {

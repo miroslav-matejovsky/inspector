@@ -26,7 +26,7 @@ The entry point is `cmd/workbench`. Start it with `task workbench` and open http
 
 Each run writes its log to `logs/workbench-<yyyyMMdd-HHmmss>.log`; the path is printed at startup. Collected signals are kept in `data/source.db`.
 
-Page. The page is a temporary text view of the collected signals, reloaded every 2 seconds: one row per target with the number of stored signals and the time, status, duration, body size and error of the latest signal, then the first 512 bytes of each latest body. `task workbench` reads the index, both health endpoints, the metrics and the three API collections. It does not read `/inspected/sim`.
+Page. The page shows the raw view of package `view`, reloaded every 2 seconds: a table with one row per target (stored signals, then time, status, duration, size, content type and error of the latest signal), then the latest signal of each target with its body. JSON bodies are indented and highlighted, metrics are highlighted, other bodies are plain text; at most 500 lines per body are shown. `task workbench` reads the index, both health endpoints, the metrics and the three API collections. It does not read `/inspected/sim`.
 
 ## inspected
 

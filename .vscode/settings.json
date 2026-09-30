@@ -96,10 +96,12 @@
     "healthz",
     "HTMX",
     "LASTEXITCODE",
+    "logfile",
     "matejovsky",
     "miroslav",
     "overcomplicate",
     "pkgname",
+    "signalstore",
     "stretchr",
     "taskfile"
   ]

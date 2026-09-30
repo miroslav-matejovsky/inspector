@@ -14,8 +14,9 @@ and the architecture overview lives in `README.md`.
 
 ## Source in the workbench
 
-- Run `task workbench`, open http://localhost:8080/: the table lists the 7 targets. After 10 seconds every target has SIGNALS >= 2, STATUS 200 and ERROR `-`.
-- `curl -X PUT -d '{"mode":"outage"}' http://localhost:8080/inspected/sim/dependencies/payment-gateway`: within 10 seconds `health_ready` shows STATUS 503 and ERROR `-`. Set `healthy` again.
+- Run `task workbench`, open http://localhost:8080/: the table lists the 7 targets. After 10 seconds every target has SIGNALS >= 2, a green STATUS 200 and ERROR `-`.
+- `curl -X PUT -d '{"mode":"outage"}' http://localhost:8080/inspected/sim/dependencies/payment-gateway`: within 10 seconds `health_ready` shows a red STATUS 503 and ERROR `-`. Set `healthy` again.
+- In the raw view, JSON bodies are indented and colored, `metrics` shows colored names, labels and values, `orders` ends with "N more lines not shown", and colors are readable in light and dark mode.
 - `data/source.db` exists. The log file has no `source target failing` line.
 - After 15 minutes, SIGNALS of every target stays at or below 121 (10m retention / 5s interval + 1).
 - Press Ctrl+C: the process exits with code 0 within 5 seconds.

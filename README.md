@@ -11,7 +11,8 @@ The toolkit follows the Alignment principle: Observe -> Source, Navigate -> Mode
 | `source` | Observe: collects signals from HTTP targets on an interval and stores them. | `internal/signalstore` |
 | `internal/signalstore` | SQLite storage of collected signals. | stdlib, `github.com/ncruces/go-sqlite3` |
 | `internal/logfile` | One log file per run, `log/slog` text format. | stdlib |
+| `view` | Explain: HTML views. The raw view shows collected signals with bodies formatted by content type. | `source` |
 
 ## Harness
 
-`harness/` holds the development workbench: a web page with a single workbench panel, a simulated order fulfillment service that exposes a JSON API, health checks and Prometheus metrics for Inspector to work against. The workbench runs a `source.Source` against the simulation and shows the collected signals as text. Start it with `task workbench`. Each run writes its log to `logs/`. See [harness/README.md](harness/README.md).
+`harness/` holds the development workbench: a web page with a single workbench panel, a simulated order fulfillment service that exposes a JSON API, health checks and Prometheus metrics for Inspector to work against. The workbench runs a `source.Source` against the simulation and shows the collected signals in the raw view of package `view`. Start it with `task workbench`. Each run writes its log to `logs/`. See [harness/README.md](harness/README.md).

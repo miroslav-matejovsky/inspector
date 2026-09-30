@@ -1,7 +1,7 @@
 // Package workbench is the development harness for Inspector.
 //
 // It serves a single web page with one workbench panel that shows the signals
-// collected by the Source of the workbench. The page is embedded in the binary
+// collected by the Source of the workbench in the raw view of package view. The page is embedded in the binary
 // and served at "/".
 //
 // # Inspected simulation
@@ -20,10 +20,9 @@
 //
 // # Page
 //
-// The page shows a text table with one row per target: stored signals, then
-// time, status, duration, body size and error of the latest signal. Below it,
-// the first 512 bytes of each latest body. The page reloads every 2 seconds.
-// This view is temporary until the toolkit has a View.
+// The page shows view.Raw of the target summaries of the Source, styled by
+// view.Styles, and reloads every 2 seconds. When the summaries cannot be read
+// or rendered, the page shows the error instead, with status 500.
 //
 // # Configuration
 //
