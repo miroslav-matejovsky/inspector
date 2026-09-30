@@ -49,3 +49,4 @@ A plan is complete only when all implementation tasks are finished, all tests pa
 
 | Name | Description |
 |------|-------------|
+| [workbench-ui](workbench-ui/README.md) | Inspector HTML pages, dashboards persisted in a JSON file, and a workbench operator panel for the inspected simulation. |
