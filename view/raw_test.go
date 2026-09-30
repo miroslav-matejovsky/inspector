@@ -193,6 +193,27 @@ func TestRawReplacesInvalidUTF8(t *testing.T) {
 	require.Contains(t, out, "a�b")
 }
 
+func TestRawPutsSignalsBelowTargets(t *testing.T) {
+	out := raw(t, ok("alpha", contentText, "abc"))
+
+	table := strings.Index(out, `<table class="targets">`)
+	signals := strings.Index(out, `<div class="signals">`)
+	signal := strings.Index(out, `id="signal-alpha"`)
+	require.GreaterOrEqual(t, table, 0)
+	require.Greater(t, signals, table)
+	require.Greater(t, signal, signals)
+}
+
+func TestStylesSplitSignalsInTwoColumns(t *testing.T) {
+	require.Contains(t, string(view.Styles), "grid-template-columns: repeat(2, minmax(0, 1fr))")
+}
+
+func TestRawMarksScrolledBodies(t *testing.T) {
+	out := raw(t, ok("alpha", contentText, "abc"))
+
+	require.Contains(t, out, `<pre class="body body-text" data-scroll="signal-alpha-body">`)
+}
+
 func TestStylesStyleRawView(t *testing.T) {
 	require.Contains(t, string(view.Styles), ".view-raw")
 }

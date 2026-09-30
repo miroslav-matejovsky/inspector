@@ -6,18 +6,3 @@ Keep this file short; active implementation plans live in `dev/plans/`,
 the structured backlog of lower-priority follow-ups lives in `dev/backlog/` (start at `dev/backlog/README.md`),
 and the architecture overview lives in `README.md`.
 
-## Workbench
-
-- Run `task workbench`, open http://localhost:8080/ and http://localhost:8080/inspected/: both answer.
-- After `task workbench`, `logs/` holds a new `workbench-<time>.log` whose first line contains `msg="workbench started"` and the address.
-- After Ctrl+C, the last line of that file contains `msg="workbench stopped"` and no error.
-
-## Source in the workbench
-
-- Run `task workbench`, open http://localhost:8080/: the table lists the 7 targets. After 10 seconds every target has SIGNALS >= 2, a green STATUS 200 and ERROR `-`.
-- On start, `healthy` is filled green for both dependencies. Click `outage` next to `payment-gateway` in the page header: the page reloads, `outage` is filled red and `healthy` is not, and within 10 seconds `health_ready` shows a red STATUS 503 and ERROR `-`. Click `healthy`: it turns green 200 again. The buttons are readable in light and dark mode.
-- In the raw view, JSON bodies are indented and colored, `metrics` shows colored names, labels and values, `orders` ends with "N more lines not shown", and colors are readable in light and dark mode.
-- `data/source.db` exists. The log file has no `source target failing` line.
-- After 15 minutes, SIGNALS of every target stays at or below 121 (10m retention / 5s interval + 1).
-- Press Ctrl+C: the process exits with code 0 within 5 seconds.
-

@@ -58,8 +58,17 @@
 .view-raw .targets td.error { white-space: normal; }
 .view-raw .targets tr.none td { color: var(--view-muted); }
 
+/* The signals below the targets table, in two columns; one on narrow screens. */
+.view-raw .signals {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 1100px) {
+  .view-raw .signals { grid-template-columns: minmax(0, 1fr); }
+}
 .view-raw .signal {
-  margin-bottom: 16px;
   border: 1px solid var(--view-border);
   border-left-width: 4px;
   border-radius: 4px;

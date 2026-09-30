@@ -162,7 +162,11 @@ func TestPageEscapesSignals(t *testing.T) {
 }
 
 func TestPageRefreshes(t *testing.T) {
-	require.Contains(t, page(t), `<meta http-equiv="refresh" content="2">`)
+	body := page(t)
+
+	require.Contains(t, body, `<body data-refresh-seconds="2">`)
+	require.Contains(t, body, `<span id="refresh-status" class="error"></span>`)
+	require.Contains(t, body, `<noscript><meta http-equiv="refresh" content="2"></noscript>`)
 }
 
 func TestPageShowsSummaryError(t *testing.T) {

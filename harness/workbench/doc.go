@@ -21,8 +21,15 @@
 // # Page
 //
 // The page shows view.Raw of the target summaries of the Source, styled by
-// view.Styles, and reloads every 2 seconds. When the summaries cannot be read
-// or rendered, the page shows the error instead, with status 500.
+// view.Styles, in a panel that scrolls as a whole. When the summaries cannot
+// be read or rendered, the page shows the error instead, with status 500.
+//
+// Every 2 seconds a script of the page gets "/" again and replaces the panel
+// in place, so the page does not reload. The scroll positions of the elements
+// with a data-scroll key, the panel content and the bodies of the view, are
+// kept. A
+// failed refresh is shown in the panel header and the old panel stays.
+// Without JavaScript, the page reloads itself every 2 seconds instead.
 //
 // # Controls
 //
@@ -33,8 +40,10 @@
 // shows the error and the page answers 500. A button posts the mode to
 // "/controls/dependencies/{name}"; the workbench sends it to the inspected
 // control API, PUT inspected.PathPrefix+"/sim/dependencies/{name}", and
-// redirects back to the page. A rejected change answers with the status and
-// body of inspected. Both calls go to the inspected handler in process.
+// redirects back to the page with 303. A rejected change answers with the
+// status and body of inspected as plain text. Both calls go to the inspected
+// handler in process. The script of the page posts the forms with fetch and
+// shows the page of the redirect in place, or the rejection in the header.
 //
 // # Configuration
 //

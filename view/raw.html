@@ -1,8 +1,10 @@
 {{define "raw" -}}
 <div class="view-raw">
 {{template "targets" .Targets}}
+<div class="signals">
 {{range .Signals}}{{template "signal" .}}
 {{end -}}
+</div>
 </div>
 {{- end}}
 
@@ -20,13 +22,13 @@
 <section class="signal {{.State}}" id="{{.Anchor}}">
 <h3><span class="name">{{.Name}}</span><span class="status">{{.Status}}</span><a class="url" href="{{.URL}}">{{.URL}}</a></h3>
 <p class="meta"><span>{{.Observed}}</span><span>{{.Duration}}</span><span>{{.Size}}</span><span>{{.ContentType}}</span></p>
-{{if .Error}}<p class="error">{{.Error}}</p>{{else}}{{template "body" .Body}}{{end}}
+{{if .Error}}<p class="error">{{.Error}}</p>{{else}}{{template "body" .}}{{end}}
 </section>
 {{- end}}
 
 {{define "body" -}}
-{{if .Note}}<p class="note">{{.Note}}</p>{{end -}}
-{{if .Lines}}<pre class="body body-{{.Format}}">{{range .Lines}}{{range .}}{{if .Class}}<span class="{{.Class}}">{{.Text}}</span>{{else}}{{.Text}}{{end}}{{end}}
+{{with .Body}}{{if .Note}}<p class="note">{{.Note}}</p>{{end -}}
+{{if .Lines}}<pre class="body body-{{.Format}}" data-scroll="{{$.Anchor}}-body">{{range .Lines}}{{range .}}{{if .Class}}<span class="{{.Class}}">{{.Text}}</span>{{else}}{{.Text}}{{end}}{{end}}
 {{end}}</pre>{{end -}}
-{{if .Hidden}}<p class="note">{{.Hidden}} more lines not shown</p>{{end}}
+{{if .Hidden}}<p class="note">{{.Hidden}} more lines not shown</p>{{end}}{{end}}
 {{- end}}

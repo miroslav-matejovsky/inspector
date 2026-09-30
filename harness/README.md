@@ -26,9 +26,9 @@ The entry point is `cmd/workbench`. Start it with `task workbench` and open http
 
 Each run writes its log to `logs/workbench-<yyyyMMdd-HHmmss>.log`; the path is printed at startup. Collected signals are kept in `data/source.db`.
 
-Page. The page shows the raw view of package `view`, reloaded every 2 seconds: a table with one row per target (stored signals, then time, status, duration, size, content type and error of the latest signal), then the latest signal of each target with its body. JSON bodies are indented and highlighted, metrics are highlighted, other bodies are plain text; at most 500 lines per body are shown. `task workbench` reads the index, both health endpoints, the metrics and the three API collections. It does not read `/inspected/sim`.
+Page. The page shows the raw view of package `view`: a full-width table with one row per target (stored signals, then time, status, duration, size, content type and error of the latest signal), and below it the latest signal of each target with its body, in two columns. On screens up to 1100px wide the signals use one column. Every 2 seconds the panel is refreshed in place, without a page reload, and scroll positions are kept. JSON bodies are indented and highlighted, metrics are highlighted, other bodies are plain text; at most 500 lines per body are shown. `task workbench` reads the index, both health endpoints, the metrics and the three API collections. It does not read `/inspected/sim`.
 
-Controls. The page header has buttons `healthy`, `slow` and `outage` for `payment-gateway` and `warehouse`. The button of the current mode, read from `GET /inspected/sim`, is filled in the color of its mode. A button sets the dependency mode through `PUT /inspected/sim/dependencies/{name}` and reloads the page.
+Controls. The page header has buttons `healthy`, `slow` and `outage` for `payment-gateway` and `warehouse`. The button of the current mode, read from `GET /inspected/sim`, is filled in the color of its mode. A button sets the dependency mode through `PUT /inspected/sim/dependencies/{name}` and refreshes the panel.
 
 ## inspected
 
